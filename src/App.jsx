@@ -84,6 +84,15 @@ const SAVEABLE_MODULES = [
 
 const USER_PIPELINES_KEY = 'ai-workbench-user-pipelines';
 
+/** http 등 비보안 컨텍스트에서도 동작하도록 UUID 대체 포함 */
+function newEntityId(prefix) {
+  const suffix =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  return `${prefix}-${suffix}`;
+}
+
 function migrateUserPipeline(p) {
   const labelMap = { 의료: 'medical', 금융: 'finance', 제조: 'manufacturing' };
   let next = { ...p };
@@ -223,7 +232,7 @@ function App() {
     setDataSources((prev) => [
       ...prev,
       {
-        id: `ds-${crypto.randomUUID()}`,
+        id: newEntityId('ds'),
         name,
         source,
         updated: '방금 추가',
@@ -305,8 +314,9 @@ function App() {
   const copyTemplateToUser = (templateId) => {
     const template = PIPELINES.find((p) => p.id === templateId);
     if (!template) return;
+    setMainHubSection('pipeline');
     const newPl = {
-      id: `user-${crypto.randomUUID()}`,
+      id: newEntityId('user'),
       domainKey: template.domainKey,
       domainLabel: template.domainLabel,
       title: `${template.title} (복사본)`,
@@ -366,7 +376,7 @@ function App() {
       pipelineDescription?.trim() ||
       `「${datasetName}」에 연결된 처리 흐름입니다. 모듈을 진행한 뒤 이름·설명을 다듬을 수 있습니다.`;
     const newPl = {
-      id: `user-${crypto.randomUUID()}`,
+      id: newEntityId('user'),
       domainKey: template.domainKey,
       domainLabel: template.domainLabel,
       title,
@@ -382,7 +392,7 @@ function App() {
     setDataSources((prev) => [
       ...prev,
       {
-        id: `ds-${crypto.randomUUID()}`,
+        id: newEntityId('ds'),
         name: datasetName,
         source,
         updated: '방금 추가',
@@ -406,7 +416,7 @@ function App() {
     if (!source) return;
     const copy = {
       ...source,
-      id: `user-${crypto.randomUUID()}`,
+      id: newEntityId('user'),
       title: `${source.title} (복사본)`,
       createdAt: new Date().toISOString(),
       autoNamed: false,
@@ -545,7 +555,7 @@ function App() {
     if (!def || def.id === 'workflow') return;
     const { domainKey, domainLabel } = resolveDomainMetaForModule(def);
     const newPl = {
-      id: `user-${crypto.randomUUID()}`,
+      id: newEntityId('user'),
       domainKey,
       domainLabel,
       title: `${def.label}에서 시작`,

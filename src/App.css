@@ -1514,6 +1514,10 @@ button.active {
   max-width: 72ch;
 }
 
+.pipeline-detail-template-actions {
+  margin-top: 14px;
+}
+
 .pipeline-detail-readonly {
   margin-bottom: 4px;
 }

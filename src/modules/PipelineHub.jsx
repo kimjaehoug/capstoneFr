@@ -151,6 +151,17 @@ function PipelineHub({
           <>
             <h3 className="section-title pipeline-detail-title">{active.title}</h3>
             <p className="section-note pipeline-detail-desc">{active.description}</p>
+            {onCopyTemplateToUser ? (
+              <div className="pipeline-detail-template-actions">
+                <button
+                  type="button"
+                  className="btn-secondary-inline"
+                  onClick={() => onCopyTemplateToUser(active.id)}
+                >
+                  내 파이프라인으로 복사
+                </button>
+              </div>
+            ) : null}
           </>
         )}
 
