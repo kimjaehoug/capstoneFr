@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Workspace from './components/Workspace';
 import ChatPanel from './components/ChatPanel';
+import LoginPage from './components/LoginPage';
 import { PIPELINES } from './data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
@@ -138,6 +139,9 @@ function createInitialModuleMemory() {
 }
 
 function App() {
+  const [currentPath, setCurrentPath] = useState(() =>
+    typeof window === 'undefined' ? '/' : window.location.pathname || '/'
+  );
   const [selectedModule, setSelectedModule] = useState('workflow');
   /** 사이드바 목록에서 한 번 클릭으로만 바뀌는 강조(설정 화면은 더블클릭) */
   const [moduleSidebarFocus, setModuleSidebarFocus] = useState('workflow');
@@ -179,6 +183,26 @@ function App() {
       text: '보조 채팅 패널입니다. 예외 조건 수정이나 보조 지시를 입력하고, 주 작업은 중앙 모듈 캔버스에서 진행하세요.',
     },
   ]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const moveToPath = (path) => {
+    if (typeof window === 'undefined') return;
+    const current = window.location.pathname || '/';
+    if (current !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setCurrentPath(path);
+  };
 
   useEffect(() => {
     localStorage.setItem(USER_PIPELINES_KEY, JSON.stringify(userPipelines));
@@ -822,98 +846,112 @@ function App() {
   const showModuleSidebar =
     selectedModule !== 'workflow' || Boolean(activePipelineId) || Boolean(activeUserPipelineId);
 
-  return (
-    <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
-      <Sidebar
-        showModuleSidebar={showModuleSidebar}
-        workflowModule={MODULES[0]}
-        baseModules={MODULES.slice(1)}
-        domainModules={domainSidebarModules}
-        mainHubSection={mainHubSection}
-        onMainHubSectionChange={setMainHubSection}
-        moduleSidebarFocus={moduleSidebarFocus}
-        onModuleSidebarFocus={handleModuleSidebarFocus}
-        onOpenModuleSettings={handleSelectModule}
-        moduleStatus={moduleStatus}
-        activeUserPipeline={activeUserPipeline}
-        onClearUserPipeline={clearUserPipelineEdit}
-        onAddModuleToUserPipeline={addModuleToUserPipeline}
-        onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
-        collapsed={sidebarCollapsed}
-        onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
-      />
+  if (currentPath === '/login') {
+    return (
+      <div className="app-root">
+        <LoginPage onBack={() => moveToPath('/')} />
+      </div>
+    );
+  }
 
-      <main className="workspace-area">
-        <Workspace
-          modules={ALL_MODULE_CATALOG}
-          pipelines={PIPELINES}
-          userPipelines={userPipelines}
-          activePipelineId={activePipelineId}
-          onSelectPipeline={handleSelectPipeline}
-          onClearPipeline={() => {
-            setActivePipelineId(null);
-            setActiveUserPipelineId(null);
-            setActiveDomainKey(null);
-          }}
-          onCopyTemplateToUser={copyTemplateToUser}
-          onDuplicateUserPipeline={duplicateUserPipeline}
-          onDeleteUserPipeline={deleteUserPipeline}
-          selectedModule={selectedModule}
-          onSelectModule={handleSelectModule}
-          moduleStatus={moduleStatus}
-          moduleMemory={moduleMemory}
-          onSaveCurrentModule={saveCurrentModule}
-          diagnosisResult={diagnosisResult}
-          onDiagnosisChange={setDiagnosisResult}
-          domainForm={domainForm}
-          onDomainChange={handleDomainChange}
-          onAutoDraftDomain={handleAutoDraftDomain}
-          searchDomainContext={searchDomainContext}
-          usingSavedDomain={usingSavedDomain}
-          selectedDatasets={selectedDatasets}
-          onToggleDataset={toggleDatasetSelection}
-          matchingDatasets={matchingDatasets}
-          usingSavedSearch={usingSavedSearch}
-          matchingReview={matchingReview}
-          onMatchingReviewChange={setMatchingReview}
-          synthesisOptions={synthesisOptions}
-          matchingContext={savedMatching}
-          onSetSynthesisMode={setSynthesisMode}
-          onToggleSynthesisConstraint={toggleSynthesisConstraint}
-          onRunSynthesis={runSynthesis}
-          resultFocus={resultFocus}
-          onResultFocusChange={setResultFocus}
-          synthesisContext={savedSynthesis}
-          domainModuleNotes={domainModuleNotes}
-          onDomainModuleNoteChange={(moduleId, value) =>
-            setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value }))
-          }
+  return (
+    <div className="app-root">
+      <button type="button" className="top-login-btn" onClick={() => moveToPath('/login')}>
+        로그인
+      </button>
+
+      <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
+        <Sidebar
+          showModuleSidebar={showModuleSidebar}
+          workflowModule={MODULES[0]}
+          baseModules={MODULES.slice(1)}
+          domainModules={domainSidebarModules}
           mainHubSection={mainHubSection}
           onMainHubSectionChange={setMainHubSection}
-          dataSources={dataSources}
-          onAddDataSource={addDataSource}
-          onDeleteDataSource={deleteDataSource}
-          onConnectDataToPipeline={connectDataToPipeline}
-          onCreatePipelineAndLinkData={createPipelineAndLinkData}
-          onUpdateUserPipeline={updateUserPipeline}
-          onMoveModuleInUserPipeline={moveModuleInUserPipeline}
+          moduleSidebarFocus={moduleSidebarFocus}
+          onModuleSidebarFocus={handleModuleSidebarFocus}
+          onOpenModuleSettings={handleSelectModule}
+          moduleStatus={moduleStatus}
+          activeUserPipeline={activeUserPipeline}
+          onClearUserPipeline={clearUserPipelineEdit}
+          onAddModuleToUserPipeline={addModuleToUserPipeline}
           onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
-          onSetUserPipelineModulePosition={setUserPipelineModulePosition}
-          onConnectModuleAfterInUserPipeline={connectModuleAfterInUserPipeline}
-          onDisconnectEdgeAfterInUserPipeline={disconnectEdgeAfterInUserPipeline}
-          activeUserPipelineId={activeUserPipelineId}
-          onStartPipelineFromModule={startPipelineFromModule}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
         />
-      </main>
 
-      <ChatPanel
-        messages={chatMessages}
-        onSendMessage={appendChat}
-        onUsePrompt={appendChat}
-        modules={ALL_MODULE_CATALOG}
-        moduleStatus={moduleStatus}
-        moduleMemory={moduleMemory}
-      />
+        <main className="workspace-area">
+          <Workspace
+            modules={ALL_MODULE_CATALOG}
+            pipelines={PIPELINES}
+            userPipelines={userPipelines}
+            activePipelineId={activePipelineId}
+            onSelectPipeline={handleSelectPipeline}
+            onClearPipeline={() => {
+              setActivePipelineId(null);
+              setActiveUserPipelineId(null);
+              setActiveDomainKey(null);
+            }}
+            onCopyTemplateToUser={copyTemplateToUser}
+            onDuplicateUserPipeline={duplicateUserPipeline}
+            onDeleteUserPipeline={deleteUserPipeline}
+            selectedModule={selectedModule}
+            onSelectModule={handleSelectModule}
+            moduleStatus={moduleStatus}
+            moduleMemory={moduleMemory}
+            onSaveCurrentModule={saveCurrentModule}
+            diagnosisResult={diagnosisResult}
+            onDiagnosisChange={setDiagnosisResult}
+            domainForm={domainForm}
+            onDomainChange={handleDomainChange}
+            onAutoDraftDomain={handleAutoDraftDomain}
+            searchDomainContext={searchDomainContext}
+            usingSavedDomain={usingSavedDomain}
+            selectedDatasets={selectedDatasets}
+            onToggleDataset={toggleDatasetSelection}
+            matchingDatasets={matchingDatasets}
+            usingSavedSearch={usingSavedSearch}
+            matchingReview={matchingReview}
+            onMatchingReviewChange={setMatchingReview}
+            synthesisOptions={synthesisOptions}
+            matchingContext={savedMatching}
+            onSetSynthesisMode={setSynthesisMode}
+            onToggleSynthesisConstraint={toggleSynthesisConstraint}
+            onRunSynthesis={runSynthesis}
+            resultFocus={resultFocus}
+            onResultFocusChange={setResultFocus}
+            synthesisContext={savedSynthesis}
+            domainModuleNotes={domainModuleNotes}
+            onDomainModuleNoteChange={(moduleId, value) =>
+              setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value }))
+            }
+            mainHubSection={mainHubSection}
+            onMainHubSectionChange={setMainHubSection}
+            dataSources={dataSources}
+            onAddDataSource={addDataSource}
+            onDeleteDataSource={deleteDataSource}
+            onConnectDataToPipeline={connectDataToPipeline}
+            onCreatePipelineAndLinkData={createPipelineAndLinkData}
+            onUpdateUserPipeline={updateUserPipeline}
+            onMoveModuleInUserPipeline={moveModuleInUserPipeline}
+            onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
+            onSetUserPipelineModulePosition={setUserPipelineModulePosition}
+            onConnectModuleAfterInUserPipeline={connectModuleAfterInUserPipeline}
+            onDisconnectEdgeAfterInUserPipeline={disconnectEdgeAfterInUserPipeline}
+            activeUserPipelineId={activeUserPipelineId}
+            onStartPipelineFromModule={startPipelineFromModule}
+          />
+        </main>
+
+        <ChatPanel
+          messages={chatMessages}
+          onSendMessage={appendChat}
+          onUsePrompt={appendChat}
+          modules={ALL_MODULE_CATALOG}
+          moduleStatus={moduleStatus}
+          moduleMemory={moduleMemory}
+        />
+      </div>
     </div>
   );
 }

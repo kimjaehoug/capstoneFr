@@ -190,6 +190,60 @@ button.active {
   transition: grid-template-columns 0.22s ease;
 }
 
+.app-root {
+  min-height: 100vh;
+  position: relative;
+}
+
+.top-login-btn {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  z-index: 40;
+  border: 1px solid var(--accent-border);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--accent);
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+}
+
+.top-login-btn:hover {
+  background: #ffffff;
+  border-color: #9eb4cc;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-card {
+  width: min(460px, 100%);
+  padding: 28px 24px;
+}
+
+.login-card h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  color: var(--text-main);
+}
+
+.login-card p {
+  margin: 0;
+  color: var(--text-sub);
+}
+
+.login-card-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+}
+
 .app-shell--sidebar-collapsed {
   grid-template-columns: 56px minmax(0, 1fr) 360px;
 }
