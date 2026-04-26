@@ -1,4 +1,5 @@
 const AUTH_STORAGE_KEY = 'stage-one-auth';
+const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 10000);
 
 export function getApiBaseUrl() {
   return (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787').replace(/\/+$/, '');
@@ -24,15 +25,28 @@ export function clearAuthState() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
-export async function loginWithGoogleIdToken(idToken) {
-  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/google`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ idToken }),
-  });
+async function requestJson(path, body) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`요청 시간이 초과되었습니다. (${API_TIMEOUT_MS}ms)`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   let payload = null;
   try {
@@ -46,6 +60,21 @@ export async function loginWithGoogleIdToken(idToken) {
   }
 
   return payload;
+}
+
+export async function signupWithCredentials(input) {
+  return requestJson('/api/v1/auth/signup', {
+    name: input.name,
+    loginId: input.loginId,
+    password: input.password,
+  });
+}
+
+export async function loginWithCredentials(input) {
+  return requestJson('/api/v1/auth/login', {
+    loginId: input.loginId,
+    password: input.password,
+  });
 }
 
 export async function logout() {
