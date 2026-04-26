@@ -7,6 +7,7 @@ import { PIPELINES } from './data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
 import { defaultLayoutFromIds } from './utils/pipelineLayout';
+import { clearAuthState, loadAuthState, logout, saveAuthState } from './utils/auth';
 import {
   connectAfterReorder,
   defaultConnectedAfter,
@@ -183,6 +184,7 @@ function App() {
       text: '보조 채팅 패널입니다. 예외 조건 수정이나 보조 지시를 입력하고, 주 작업은 중앙 모듈 캔버스에서 진행하세요.',
     },
   ]);
+  const [auth, setAuth] = useState(() => loadAuthState());
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -846,19 +848,46 @@ function App() {
   const showModuleSidebar =
     selectedModule !== 'workflow' || Boolean(activePipelineId) || Boolean(activeUserPipelineId);
 
+  const handleLoginSuccess = (login) => {
+    const next = {
+      accessToken: login.accessToken,
+      tokenType: login.tokenType,
+      expiresIn: login.expiresIn,
+      user: login.user,
+    };
+    saveAuthState(next);
+    setAuth(next);
+    moveToPath('/');
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    clearAuthState();
+    setAuth(null);
+  };
+
   if (currentPath === '/login') {
     return (
       <div className="app-root">
-        <LoginPage onBack={() => moveToPath('/')} />
+        <LoginPage onBack={() => moveToPath('/')} onLoginSuccess={handleLoginSuccess} />
       </div>
     );
   }
 
   return (
     <div className="app-root">
-      <button type="button" className="top-login-btn" onClick={() => moveToPath('/login')}>
-        로그인
-      </button>
+      {auth?.user ? (
+        <div className="top-auth-box">
+          <span className="top-auth-name">{auth.user.name || auth.user.email}</span>
+          <button type="button" className="top-login-btn" onClick={handleLogout}>
+            로그아웃
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="top-login-btn" onClick={() => moveToPath('/login')}>
+          로그인
+        </button>
+      )}
 
       <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
         <Sidebar

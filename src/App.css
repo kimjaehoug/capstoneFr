@@ -195,6 +195,29 @@ button.active {
   position: relative;
 }
 
+.top-auth-box {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-auth-name {
+  font-size: 12px;
+  color: var(--text-sub);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .top-login-btn {
   position: fixed;
   top: 18px;
@@ -242,6 +265,20 @@ button.active {
   margin-top: 18px;
   display: flex;
   gap: 10px;
+}
+
+.login-google-button {
+  margin-top: 14px;
+}
+
+.login-status {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.login-status.loading {
+  color: var(--accent);
 }
 
 .app-shell--sidebar-collapsed {
