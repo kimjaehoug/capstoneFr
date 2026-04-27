@@ -254,36 +254,6 @@ button.active {
   border-color: #9eb4cc;
 }
 
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.login-card {
-  width: min(460px, 100%);
-  padding: 28px 24px;
-}
-
-.login-card h1 {
-  margin: 0 0 8px;
-  font-size: 24px;
-  color: var(--text-main);
-}
-
-.login-card p {
-  margin: 0;
-  color: var(--text-sub);
-}
-
-.login-card-actions {
-  margin-top: 18px;
-  display: flex;
-  gap: 10px;
-}
-
 .login-mode-tabs {
   display: flex;
   gap: 8px;
@@ -300,33 +270,6 @@ button.active {
   background: var(--accent-soft);
   border-color: var(--accent-border);
   color: var(--accent);
-}
-
-.login-form {
-  margin-top: 14px;
-  display: grid;
-  gap: 10px;
-}
-
-.login-form label {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--text-sub);
-}
-
-.login-divider {
-  margin-top: 14px;
-  margin-bottom: 10px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.login-status {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--text-sub);
 }
 
 .login-status.loading {
