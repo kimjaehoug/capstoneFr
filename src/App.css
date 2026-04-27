@@ -182,7 +182,7 @@ button.active {
 .app-shell {
   display: grid;
   grid-template-columns: 288px minmax(0, 1fr) 360px;
-  height: 100vh;
+  height: calc(100vh - 62px);
   gap: 14px;
   padding: 14px;
   max-width: 100%;
@@ -195,11 +195,24 @@ button.active {
   position: relative;
 }
 
+.app-topbar {
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 22px 0;
+}
+
+.app-topbar-logo {
+  display: inline-flex;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
 .top-auth-box {
-  position: fixed;
-  top: 18px;
-  right: 22px;
-  z-index: 40;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -219,10 +232,6 @@ button.active {
 }
 
 .top-login-btn {
-  position: fixed;
-  top: 18px;
-  right: 22px;
-  z-index: 40;
   border: 1px solid var(--accent-border);
   background: rgba(255, 255, 255, 0.95);
   color: var(--accent);
@@ -318,6 +327,14 @@ button.active {
 
 .app-shell--sidebar-collapsed {
   grid-template-columns: 56px minmax(0, 1fr) 360px;
+}
+
+.app-shell--chat-collapsed {
+  grid-template-columns: 288px minmax(0, 1fr) 56px;
+}
+
+.app-shell--sidebar-collapsed.app-shell--chat-collapsed {
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
 }
 
 .panel {
@@ -2699,6 +2716,37 @@ button.active {
   gap: 12px;
 }
 
+.chat-panel--collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 6px;
+  overflow: hidden;
+}
+
+.chat-collapse-btn {
+  align-self: flex-start;
+  margin-left: 0;
+  margin-right: auto;
+  flex-shrink: 0;
+}
+
+.chat-panel--collapsed .chat-collapse-btn {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.chat-collapsed-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
 .chat-system-note h3 {
   margin: 0;
   font-size: 15px;
@@ -2830,10 +2878,17 @@ button.active {
 @media (max-width: 1260px) {
   .app-shell {
     grid-template-columns: 230px minmax(0, 1fr);
+    height: auto;
+    min-height: calc(100vh - 62px);
   }
 
   .app-shell.app-shell--sidebar-collapsed {
     grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .app-shell.app-shell--chat-collapsed,
+  .app-shell.app-shell--sidebar-collapsed.app-shell--chat-collapsed {
+    grid-template-columns: 230px minmax(0, 1fr);
   }
 
   .chat-panel {
@@ -2851,10 +2906,14 @@ button.active {
 }
 
 @media (max-width: 860px) {
+  .app-topbar {
+    padding: 10px 14px 0;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
     height: auto;
-    min-height: 100vh;
+    min-height: calc(100vh - 62px);
   }
 
   .app-shell.app-shell--sidebar-collapsed {

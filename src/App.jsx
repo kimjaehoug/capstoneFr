@@ -152,6 +152,7 @@ function App() {
   const [activeDomainKey, setActiveDomainKey] = useState(null);
   const [mainHubSection, setMainHubSection] = useState('pipeline');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false);
   const [dataSources, setDataSources] = useState(() => loadDataSources());
   const [domainModuleNotes, setDomainModuleNotes] = useState(() =>
     DOMAIN_MODULE_IDS.reduce((acc, id) => {
@@ -876,20 +877,29 @@ function App() {
 
   return (
     <div className="app-root">
-      {auth?.user ? (
-        <div className="top-auth-box">
-          <span className="top-auth-name">{auth.user.name || auth.user.email}</span>
-          <button type="button" className="top-login-btn" onClick={handleLogout}>
-            로그아웃
-          </button>
+      <header className="app-topbar">
+        <div className="app-topbar-logo" aria-label="WWorkbench 로고">
+          WWorkbench
         </div>
-      ) : (
-        <button type="button" className="top-login-btn" onClick={() => moveToPath('/login')}>
-          로그인
-        </button>
-      )}
+        {auth?.user ? (
+          <div className="top-auth-box">
+            <span className="top-auth-name">{auth.user.name || auth.user.email}</span>
+            <button type="button" className="top-login-btn" onClick={handleLogout}>
+              로그아웃
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="top-login-btn" onClick={() => moveToPath('/login')}>
+            로그인
+          </button>
+        )}
+      </header>
 
-      <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
+      <div
+        className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}${
+          chatPanelCollapsed ? ' app-shell--chat-collapsed' : ''
+        }`}
+      >
         <Sidebar
           showModuleSidebar={showModuleSidebar}
           workflowModule={MODULES[0]}
@@ -979,6 +989,8 @@ function App() {
           modules={ALL_MODULE_CATALOG}
           moduleStatus={moduleStatus}
           moduleMemory={moduleMemory}
+          collapsed={chatPanelCollapsed}
+          onToggleCollapsed={() => setChatPanelCollapsed((c) => !c)}
         />
       </div>
     </div>
