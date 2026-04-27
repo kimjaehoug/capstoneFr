@@ -1,21 +1,12 @@
 import { useEffect, useState } from 'react';
-import PipelineFlowCanvas from '../components/PipelineFlowCanvas';
-import { normalizeConnectedAfter } from '../utils/pipelineConnections';
-
-function formatSavedTime(isoDate) {
-  if (!isoDate) return '-';
-  return new Date(isoDate).toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import PipelineTimelineColumns from '../components/PipelineTimelineColumns';
 
 function PipelineHub({
   templatePipelines,
   userPipelines,
   modules,
   moduleStatus,
-  moduleMemory,
+  moduleMemory: _moduleMemory,
   activePipelineId,
   onSelectPipeline,
   onClearPipeline,
@@ -24,11 +15,11 @@ function PipelineHub({
   onDuplicateUserPipeline,
   onDeleteUserPipeline,
   onUpdateUserPipeline,
-  onMoveModuleInUserPipeline,
+  onMoveModuleInUserPipeline: _onMoveModuleInUserPipeline,
   onRemoveModuleFromUserPipeline,
-  onSetUserPipelineModulePosition,
-  onConnectModuleAfterInUserPipeline,
-  onDisconnectEdgeAfterInUserPipeline,
+  onSetUserPipelineModulePosition: _onSetUserPipelineModulePosition,
+  onConnectModuleAfterInUserPipeline: _onConnectModuleAfterInUserPipeline,
+  onDisconnectEdgeAfterInUserPipeline: _onDisconnectEdgeAfterInUserPipeline,
 }) {
   const allPipelines = [...templatePipelines, ...userPipelines];
   const active = allPipelines.find((p) => p.id === activePipelineId);
@@ -63,10 +54,6 @@ function PipelineHub({
   }, [listEditId, userPipelines]);
 
   if (active) {
-    const pipelineModules = active.moduleIds
-      .map((id) => modules.find((m) => m.id === id))
-      .filter(Boolean);
-
     return (
       <div className="pipeline-detail">
         <div className="pipeline-hub-toolbar">
@@ -172,24 +159,13 @@ function PipelineHub({
           </p>
         ) : null}
 
-        <PipelineFlowCanvas
-          steps={pipelineModules}
-          moduleIdsOrdered={active.moduleIds}
-          connectedAfter={normalizeConnectedAfter(active.moduleIds, active.connectedAfter)}
-          moduleLayout={activeIsUser ? active.moduleLayout : undefined}
-          moduleStatus={moduleStatus}
-          moduleMemory={moduleMemory}
-          formatSavedTime={formatSavedTime}
+        <PipelineTimelineColumns
+          pipelineKey={activeIsUser ? active.id : `tpl:${active.id}`}
           editable={activeIsUser}
-          pipelineId={activeIsUser ? active.id : null}
+          pipelineModuleIds={active.moduleIds}
+          modules={modules}
+          moduleStatus={moduleStatus}
           onOpenModule={onStartModule}
-          onRemoveModule={(moduleId) => onRemoveModuleFromUserPipeline?.(moduleId)}
-          onMoveModule={(from, to) => onMoveModuleInUserPipeline?.(from, to)}
-          onDisconnectAfter={(afterIndex) => {
-            if (activeIsUser) onDisconnectEdgeAfterInUserPipeline?.(afterIndex);
-          }}
-          onModulePositionChange={onSetUserPipelineModulePosition}
-          onConnectModuleAfter={(fromId, toId) => onConnectModuleAfterInUserPipeline?.(fromId, toId)}
         />
       </div>
     );
@@ -201,8 +177,8 @@ function PipelineHub({
         <p className="hub-eyebrow">Pipeline</p>
         <h3 className="hub-hero-title">파이프라인 조회/관리</h3>
         <p className="hub-hero-lead">
-          도메인별 데이터 파이프라인을 열고, 템플릿을 내 파이프라인으로 복사해 구성을 시작합니다. 파이프라인을
-          연 뒤에는 왼쪽에서 모듈을 추가·제거할 수 있습니다.
+          도메인별 데이터 파이프라인을 열고, 템플릿을 내 파이프라인으로 복사해 구성을 시작합니다. 연 뒤에는 고정된
+          6단계 가로 타임라인에서 단계별 부가 기능 후보를 고를 수 있습니다.
         </p>
       </header>
 

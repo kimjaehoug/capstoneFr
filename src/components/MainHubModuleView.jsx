@@ -105,7 +105,7 @@ function MainHubModuleView({ modules, moduleStatus, onOpenModule }) {
       <header className="main-hub-section-head">
         <h3 className="main-hub-section-title">모듈 조회/관리</h3>
         <p className="main-hub-section-desc">
-          워크벤치에서 사용할 수 있는 기본·도메인 모듈을 살펴보고 바로 열 수 있습니다.
+          워크벤치에서 사용할 수 있는 기본·도메인 모듈을 살펴보고 열어보세요.
         </p>
       </header>
 
@@ -128,7 +128,7 @@ function MainHubModuleView({ modules, moduleStatus, onOpenModule }) {
         </div>
         <div className="main-hub-addon-toolbar">
           <p className="main-hub-addon-intro">
-            단계를 골라 해당 부가 모듈만 표시합니다. 긴 목록 스크롤을 줄입니다.
+            단계를 골라 해당 부가 모듈를 확인하세요.
           </p>
           <div className="main-hub-addon-tablist" role="tablist" aria-label="부가 모듈 기본 단계">
             {addonGroups.map((group) => {

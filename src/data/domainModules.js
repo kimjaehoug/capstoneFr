@@ -9,6 +9,8 @@ export const DOMAIN_KEYS = {
 /** 부가 모듈을 모듈 조회/관리 등에서 묶어 보여줄 때 순서 */
 export const ADDON_PARENT_ORDER = ['diagnosis', 'domain', 'search', 'matching', 'synthesis', 'results'];
 
+export const CORE_PIPELINE_MODULE_ID_SET = new Set(ADDON_PARENT_ORDER);
+
 /** 기본 구조 모듈 id → 표시 이름 */
 export const PARENT_CORE_LABELS = {
   diagnosis: '데이터 진단',
