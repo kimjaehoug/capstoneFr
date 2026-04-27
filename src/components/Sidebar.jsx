@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../data/domainModules';
 
 const MAIN_HUB_SECTIONS = [
   { id: 'data', label: '데이터 조회/관리' },
@@ -69,11 +70,49 @@ function Sidebar({
   const editingPipeline = Boolean(activeUserPipeline);
   const [sectionOpen, setSectionOpen] = useState({ base: true, domain: true });
 
+  /** 한 번에 하나의 단계만 펼침 → 세로 스크롤 단축 */
+  const [openDomainStageId, setOpenDomainStageId] = useState(null);
+
+  const domainAddonGroups = useMemo(() => {
+    const grouped = ADDON_PARENT_ORDER.map((parentId) => ({
+      parentId,
+      title: PARENT_CORE_LABELS[parentId],
+      modules: domainModules.filter((m) => m.parentCoreModule === parentId),
+    })).filter((g) => g.modules.length > 0);
+
+    const stray = domainModules.filter(
+      (m) =>
+        !m.parentCoreModule ||
+        !ADDON_PARENT_ORDER.includes(m.parentCoreModule),
+    );
+    if (stray.length > 0) {
+      grouped.push({
+        parentId: '_other',
+        title: '기타',
+        modules: stray,
+      });
+    }
+    return grouped;
+  }, [domainModules]);
+
+  useEffect(() => {
+    if (
+      openDomainStageId &&
+      !domainAddonGroups.some((g) => g.parentId === openDomainStageId)
+    ) {
+      setOpenDomainStageId(null);
+    }
+  }, [domainAddonGroups, openDomainStageId]);
+
+  const toggleDomainStage = (parentId) => {
+    setOpenDomainStageId((cur) => (cur === parentId ? null : parentId));
+  };
+
   const toggleSection = (sid) => {
     setSectionOpen((prev) => ({ ...prev, [sid]: !prev[sid] }));
   };
 
-  const renderModuleButton = (module, { domainStyle } = {}) => {
+  const renderModuleButton = (module, { domainStyle, compact } = {}) => {
     const status = moduleStatus[module.id];
 
     if (module.id === 'workflow') {
@@ -100,14 +139,20 @@ function Sidebar({
       editingPipeline && activeUserPipeline.moduleIds.includes(module.id);
     const canRemove = editingPipeline && activeUserPipeline.moduleIds.length > 1;
 
+    const hoverTitle = compact
+      ? `${module.label}\n${module.description || ''}\n\n클릭: 선택 · 더블클릭: 설정`
+      : '클릭: 선택 · 더블클릭: 설정 화면';
+
     return (
       <div key={module.id} className="module-row">
         <button
           type="button"
           className={`module-button ${domainStyle ? 'module-button-domain' : ''} ${
-            moduleSidebarFocus === module.id ? 'active' : ''
-          } ${editingPipeline && !inPipeline ? 'module-button-dim' : ''}`}
-          title="클릭: 선택 · 더블클릭: 설정 화면"
+            compact ? 'module-button--compact' : ''
+          } ${moduleSidebarFocus === module.id ? 'active' : ''} ${
+            editingPipeline && !inPipeline ? 'module-button-dim' : ''
+          }`}
+          title={hoverTitle}
           onClick={() => onModuleSidebarFocus(module.id)}
           onDoubleClick={() => onOpenModuleSettings(module.id)}
         >
@@ -115,8 +160,12 @@ function Sidebar({
             <span className="module-label">{module.label}</span>
             <span className={`status-dot ${status?.state || 'draft'}`} />
           </span>
-          <span className="module-description">{module.description}</span>
-          {status && <span className="module-meta">{status.summary}</span>}
+          {!compact && (
+            <>
+              <span className="module-description">{module.description}</span>
+              {status && <span className="module-meta">{status.summary}</span>}
+            </>
+          )}
         </button>
         {editingPipeline && (
           <div className="module-pipeline-actions">
@@ -235,8 +284,47 @@ function Sidebar({
                 open={sectionOpen.domain}
                 onToggle={toggleSection}
               >
-                <div className="sidebar-module-stack">
-                  {domainModules.map((m) => renderModuleButton(m, { domainStyle: true }))}
+                <div className="sidebar-domain-wrap">
+                  <p className="sidebar-domain-hint">
+                    단계 행을 눌러 펼치면 해당 부가 모듈만 보입니다.
+                  </p>
+                  <div className="sidebar-domain-accordion" role="list">
+                    {domainAddonGroups.map((group) => {
+                      const isOpen = openDomainStageId === group.parentId;
+                      const idx = ADDON_PARENT_ORDER.indexOf(group.parentId);
+                      return (
+                        <div
+                          key={group.parentId}
+                          className="sidebar-domain-stage"
+                          data-stage={group.parentId}
+                          role="listitem"
+                        >
+                          <button
+                            type="button"
+                            className={`sidebar-domain-stage-toggle ${isOpen ? 'is-open' : ''}`}
+                            aria-expanded={isOpen}
+                            onClick={() => toggleDomainStage(group.parentId)}
+                          >
+                            <span className="sidebar-domain-stage-index" aria-hidden>
+                              {idx >= 0 ? idx + 1 : '—'}
+                            </span>
+                            <span className="sidebar-domain-stage-label">{group.title}</span>
+                            <span className="sidebar-domain-stage-count">{group.modules.length}</span>
+                            <span className="sidebar-domain-stage-chevron" aria-hidden>
+                              {isOpen ? '▾' : '▸'}
+                            </span>
+                          </button>
+                          {isOpen ? (
+                            <div className="sidebar-domain-stage-panel">
+                              {group.modules.map((m) =>
+                                renderModuleButton(m, { domainStyle: true, compact: true }),
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </CollapsibleSection>
             ) : null}
