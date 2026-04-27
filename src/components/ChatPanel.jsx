@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const PROMPT_CHIPS = [
   '도메인 자동 작성해줘',
@@ -28,6 +28,7 @@ function ChatPanel({
   onToggleCollapsed,
 }) {
   const [input, setInput] = useState('');
+  const messagesRef = useRef(null);
 
   const savedModules = useMemo(() => {
     return modules
@@ -45,6 +46,11 @@ function ChatPanel({
     onSendMessage(input);
     setInput('');
   };
+
+  useEffect(() => {
+    if (!messagesRef.current || collapsed) return;
+    messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+  }, [messages, collapsed]);
 
   return (
     <aside className={`chat-panel panel${collapsed ? ' chat-panel--collapsed' : ''}`}>
@@ -108,7 +114,7 @@ function ChatPanel({
             )}
           </div>
 
-          <div className="chat-messages">
+          <div className="chat-messages" ref={messagesRef}>
             {messages.map((message) => (
               <div key={message.id} className={`chat-message ${message.role}`}>
                 <span className="chat-role">{message.role}</span>

@@ -93,6 +93,7 @@ function Workspace({
     selectedModule === 'workflow' && activePipeline
       ? activePipeline.description
       : selectedModuleInfo?.description;
+  const showWorkspaceHeader = !isMainHubRoot && !(selectedModule === 'workflow' && activePipeline);
 
   const showModuleBack = !isMainHubRoot && selectedModule !== 'workflow';
   const showPipelineHubBack = selectedModule === 'workflow' && Boolean(activePipeline);
@@ -218,7 +219,7 @@ function Workspace({
 
   return (
     <div className="workspace panel">
-      {!isMainHubRoot && (
+      {showWorkspaceHeader && (
         <header
           className={`workspace-header ${showModuleBack || showPipelineHubBack ? 'workspace-header--has-back' : ''}`}
         >

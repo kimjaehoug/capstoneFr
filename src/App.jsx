@@ -867,6 +867,15 @@ function App() {
     setAuth(null);
   };
 
+  const handleGoHome = () => {
+    moveToPath('/');
+    setSelectedModule('workflow');
+    setMainHubSection('pipeline');
+    setActivePipelineId(null);
+    setActiveUserPipelineId(null);
+    setActiveDomainKey(null);
+  };
+
   if (currentPath === '/login') {
     return (
       <div className="app-root">
@@ -878,9 +887,9 @@ function App() {
   return (
     <div className="app-root">
       <header className="app-topbar">
-        <div className="app-topbar-logo" aria-label="WWorkbench 로고">
+        <button type="button" className="app-topbar-logo" onClick={handleGoHome} aria-label="처음 화면으로 이동">
           WWorkbench
-        </div>
+        </button>
         {auth?.user ? (
           <div className="top-auth-box">
             <span className="top-auth-name">{auth.user.name || auth.user.email}</span>

@@ -210,6 +210,14 @@ button.active {
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-main);
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.app-topbar-logo:hover {
+  color: var(--accent);
 }
 
 .top-auth-box {
@@ -1847,6 +1855,21 @@ button.active {
   margin-bottom: 12px;
 }
 
+.pipeline-zoom-controls {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pipeline-zoom-label {
+  min-width: 48px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5a6b7c;
+}
+
 .pipeline-canvas-add-bar {
   display: flex;
   flex-wrap: wrap;
@@ -1892,6 +1915,10 @@ button.active {
   position: relative;
   margin: 0;
   background: transparent;
+}
+
+.pipeline-canvas-stage {
+  position: relative;
 }
 
 .pipeline-canvas-svg {
@@ -2158,6 +2185,14 @@ button.active {
 .pipeline-flow-node--dragging {
   opacity: 0.45;
   box-shadow: 0 8px 28px rgba(224, 130, 32, 0.25);
+}
+
+.pipeline-flow-node--rollback {
+  transition:
+    top 0.56s cubic-bezier(0.16, 1.08, 0.32, 1),
+    left 0.56s cubic-bezier(0.16, 1.08, 0.32, 1),
+    box-shadow 0.4s ease;
+  box-shadow: 0 12px 28px rgba(224, 130, 32, 0.24);
 }
 
 .pipeline-flow-node-drag {
@@ -2714,6 +2749,9 @@ button.active {
   grid-template-rows: auto auto auto 1fr auto;
   padding: 16px 14px;
   gap: 12px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-panel--collapsed {
@@ -2835,9 +2873,11 @@ button.active {
   border-radius: 10px;
   padding: 8px;
   background: #f9fbfc;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: grid;
   gap: 8px;
+  min-height: 0;
 }
 
 .chat-message {
