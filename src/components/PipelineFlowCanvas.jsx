@@ -4,7 +4,6 @@ import { normalizeConnectedAfter } from '../utils/pipelineConnections';
 
 const NODE_W = 280;
 const NODE_H = 112;
-const ORDER_GUARD_MARGIN = 8;
 const ZOOM_MIN = 0.35;
 const ZOOM_MAX = 1.6;
 const ZOOM_STEP = 0.1;
@@ -32,7 +31,7 @@ function computeBoardSize(moduleIds, layout) {
   return { width: maxX, height: maxY };
 }
 
-function EdgesSvg({ moduleIds, connectedAfter, layout, width, height }) {
+function EdgesSvg({ moduleIds, connectedAfter, layout, width, height, selectedEdgeIndex, onSelectEdge }) {
   const paths = [];
   for (let i = 0; i < moduleIds.length - 1; i++) {
     if (!connectedAfter[i]) continue;
@@ -49,13 +48,27 @@ function EdgesSvg({ moduleIds, connectedAfter, layout, width, height }) {
     const cx2 = x1 + (x2 - x1) * 0.65;
     const d = `M ${x1} ${y1} C ${cx1} ${y1} ${cx2} ${y2} ${x2} ${y2}`;
     paths.push(
-      <path
-        key={`${a}-${b}`}
-        d={d}
-        className="pipeline-canvas-edge"
-        fill="none"
-        markerEnd="url(#pipeline-arrow)"
-      />
+      <g key={`${a}-${b}`}>
+        <path
+          d={d}
+          className="pipeline-canvas-edge-hit"
+          fill="none"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectEdge?.(i);
+          }}
+        />
+        <path
+          d={d}
+          className={`pipeline-canvas-edge ${selectedEdgeIndex === i ? 'pipeline-canvas-edge--selected' : ''}`}
+          fill="none"
+          markerEnd="url(#pipeline-arrow)"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectEdge?.(i);
+          }}
+        />
+      </g>
     );
   }
   return (
@@ -109,15 +122,12 @@ function PipelineFlowCanvas({
   onConnectModuleAfter,
 }) {
   const scrollRef = useRef(null);
-  const dragStartPosRef = useRef(null);
-  const dragOrderViolationRef = useRef(false);
-  const rollbackTimerRef = useRef(null);
   const hasUserZoomedRef = useRef(false);
   const [draggingId, setDraggingId] = useState(null);
-  const [rollbackNodeId, setRollbackNodeId] = useState(null);
   const [linkDragFromId, setLinkDragFromId] = useState(null);
   const [linkDragEnd, setLinkDragEnd] = useState(null);
   const [zoom, setZoom] = useState(1);
+  const [selectedEdgeIndex, setSelectedEdgeIndex] = useState(null);
 
   const layout = useMemo(
     () => mergeModuleLayout(moduleIdsOrdered, moduleLayout),
@@ -167,39 +177,15 @@ function PipelineFlowCanvas({
       const orig = layout[moduleId];
       if (!orig) return;
       const grab = { x: start.x - orig.x, y: start.y - orig.y };
-      dragStartPosRef.current = { x: orig.x, y: orig.y };
-      dragOrderViolationRef.current = false;
       setDraggingId(moduleId);
 
       const move = (ev) => {
         const p = eventToContentCoords(ev, scrollEl, zoom);
         const x = Math.round(p.x - grab.x);
-        let y = Math.round(p.y - grab.y);
-        const moduleIndex = moduleIdsOrdered.indexOf(moduleId);
-        const prevId = moduleIndex > 0 ? moduleIdsOrdered[moduleIndex - 1] : null;
-        const nextId = moduleIndex < moduleIdsOrdered.length - 1 ? moduleIdsOrdered[moduleIndex + 1] : null;
-        const prevY = prevId ? layout[prevId]?.y : null;
-        const nextY = nextId ? layout[nextId]?.y : null;
-
-        const violatesPrev = typeof prevY === 'number' && y <= prevY + ORDER_GUARD_MARGIN;
-        const violatesNext = typeof nextY === 'number' && y >= nextY - ORDER_GUARD_MARGIN;
-        dragOrderViolationRef.current = violatesPrev || violatesNext;
+        const y = Math.round(p.y - grab.y);
         onModulePositionChange(pipelineId, moduleId, { x, y });
       };
       const up = () => {
-        if (dragOrderViolationRef.current && dragStartPosRef.current) {
-          onModulePositionChange(pipelineId, moduleId, dragStartPosRef.current);
-          setRollbackNodeId(moduleId);
-          if (rollbackTimerRef.current) {
-            window.clearTimeout(rollbackTimerRef.current);
-          }
-          rollbackTimerRef.current = window.setTimeout(() => {
-            setRollbackNodeId(null);
-            rollbackTimerRef.current = null;
-          }, 620);
-        }
-        dragStartPosRef.current = null;
-        dragOrderViolationRef.current = false;
         setDraggingId(null);
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
@@ -209,16 +195,29 @@ function PipelineFlowCanvas({
       window.addEventListener('pointerup', up);
       window.addEventListener('pointercancel', up);
     },
-    [editable, layout, moduleIdsOrdered, onModulePositionChange, pipelineId, zoom]
+    [editable, layout, onModulePositionChange, pipelineId, zoom]
   );
 
   useEffect(() => {
-    return () => {
-      if (rollbackTimerRef.current) {
-        window.clearTimeout(rollbackTimerRef.current);
-      }
+    if (selectedEdgeIndex == null) return;
+    if (!connectedAfter[selectedEdgeIndex]) {
+      setSelectedEdgeIndex(null);
+    }
+  }, [connectedAfter, selectedEdgeIndex]);
+
+  useEffect(() => {
+    if (!editable || selectedEdgeIndex == null) return undefined;
+    const onKeyDown = (ev) => {
+      if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+      ev.preventDefault();
+      onDisconnectAfter?.(selectedEdgeIndex);
+      setSelectedEdgeIndex(null);
     };
-  }, []);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [editable, onDisconnectAfter, selectedEdgeIndex]);
 
   const startLinkDrag = useCallback(
     (e, fromId) => {
@@ -234,7 +233,9 @@ function PipelineFlowCanvas({
       const up = (ev) => {
         const el = document.elementFromPoint(ev.clientX, ev.clientY);
         const pin = el?.closest?.('[data-pipeline-port-in]');
-        const toId = pin?.getAttribute?.('data-module-id');
+        const node = el?.closest?.('[data-pipeline-node]');
+        const toId =
+          pin?.getAttribute?.('data-module-id') ?? node?.getAttribute?.('data-module-id');
         if (fromId && toId && toId !== fromId) {
           onConnectModuleAfter(fromId, toId);
         }
@@ -274,6 +275,7 @@ function PipelineFlowCanvas({
   return (
     <div
       className={`pipeline-flow pipeline-flow--canvas ${draggingId || linkDragFromId ? 'pipeline-flow--dragging' : ''}`}
+      onClick={() => setSelectedEdgeIndex(null)}
     >
       <div className="pipeline-flow-toolbar pipeline-flow-toolbar--canvas">
         <span className="pipeline-flow-toolbar-label">처리 흐름 · 자유 배치</span>
@@ -347,6 +349,8 @@ function PipelineFlowCanvas({
               connectedAfter={connectedAfter}
               width={boardSize.width}
               height={boardSize.height}
+              selectedEdgeIndex={selectedEdgeIndex}
+              onSelectEdge={setSelectedEdgeIndex}
             />
             {linkDragFromId && linkDragEnd ? (
               <LinkDragPreview
@@ -362,12 +366,17 @@ function PipelineFlowCanvas({
               const i = indexById[module.id];
               const pos = layout[module.id] || { x: 0, y: 0 };
               const hasLinkedNext = i < moduleIdsOrdered.length - 1 && connectedAfter[i];
+            const isDomainModule = Boolean(module.domainKey);
               return (
                 <article
                   key={module.id}
                   className={`pipeline-flow-node pipeline-flow-node--free ${
                     draggingId === module.id ? 'pipeline-flow-node--dragging' : ''
-                  } ${rollbackNodeId === module.id ? 'pipeline-flow-node--rollback' : ''}`}
+                } ${
+                  isDomainModule ? 'pipeline-flow-node--domain' : ''
+                }`}
+                data-pipeline-node=""
+                data-module-id={module.id}
                   style={{
                     left: pos.x,
                     top: pos.y,

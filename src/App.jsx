@@ -478,18 +478,55 @@ function App() {
       prev.map((p) => {
         if (p.id !== activeUserPipelineId) return p;
         if (p.moduleIds.includes(moduleId)) return p;
-        const layout = { ...(p.moduleLayout || {}) };
-        const lastId = p.moduleIds[p.moduleIds.length - 1];
-        if (lastId && layout[lastId]) {
-          layout[moduleId] = { x: layout[lastId].x + 120, y: layout[lastId].y + 60 };
+        const deps = Array.isArray(def?.pipelineFrom) ? def.pipelineFrom : [];
+        let insertIndex = p.moduleIds.length;
+        const depIndexes = deps
+          .map((depId) => p.moduleIds.indexOf(depId))
+          .filter((idx) => idx >= 0);
+        if (depIndexes.length > 0) {
+          insertIndex = Math.max(...depIndexes) + 1;
         } else {
-          layout[moduleId] = { x: 160 + p.moduleIds.length * 48, y: 160 + p.moduleIds.length * 48 };
+          const newModuleOrder = MODULES.findIndex((m) => m.id === moduleId);
+          if (newModuleOrder >= 0) {
+            const nextOrderedIndex = p.moduleIds.findIndex((id) => {
+              const currentOrder = MODULES.findIndex((m) => m.id === id);
+              return currentOrder > newModuleOrder;
+            });
+            if (nextOrderedIndex >= 0) insertIndex = nextOrderedIndex;
+          }
+        }
+        const nextIds = [...p.moduleIds];
+        nextIds.splice(insertIndex, 0, moduleId);
+        const layout = { ...(p.moduleLayout || {}) };
+        const prevId = nextIds[insertIndex - 1];
+        const nextId = nextIds[insertIndex + 1];
+        if (prevId && nextId && layout[prevId] && layout[nextId]) {
+          layout[moduleId] = {
+            x: Math.round((layout[prevId].x + layout[nextId].x) / 2),
+            y: Math.round((layout[prevId].y + layout[nextId].y) / 2),
+          };
+        } else if (prevId && layout[prevId]) {
+          layout[moduleId] = { x: layout[prevId].x + 120, y: layout[prevId].y + 60 };
+        } else if (nextId && layout[nextId]) {
+          layout[moduleId] = { x: Math.max(40, layout[nextId].x - 120), y: Math.max(40, layout[nextId].y - 60) };
+        } else {
+          layout[moduleId] = { x: 160 + nextIds.length * 48, y: 160 + nextIds.length * 48 };
         }
         const prevConn = normalizeConnectedAfter(p.moduleIds, p.connectedAfter);
+        const nextConn = Array(nextIds.length - 1).fill(false);
+        for (let i = 0; i < p.moduleIds.length - 1; i++) {
+          if (!prevConn[i]) continue;
+          const from = p.moduleIds[i];
+          const to = p.moduleIds[i + 1];
+          const fromIdx = nextIds.indexOf(from);
+          if (fromIdx >= 0 && nextIds[fromIdx + 1] === to) {
+            nextConn[fromIdx] = true;
+          }
+        }
         return {
           ...p,
-          moduleIds: [...p.moduleIds, moduleId],
-          connectedAfter: [...prevConn, true],
+          moduleIds: nextIds,
+          connectedAfter: nextConn,
           moduleLayout: layout,
         };
       })
