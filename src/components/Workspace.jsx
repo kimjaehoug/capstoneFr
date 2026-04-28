@@ -100,28 +100,28 @@ function Workspace({
   const showMainHubSectionBack =
     isMainHubRoot && mainHubSection !== 'pipeline' && typeof onMainHubSectionChange === 'function';
 
-  const pipelineHubElement = (
-    <PipelineHub
-      templatePipelines={pipelines}
-      userPipelines={userPipelines}
-      modules={modules}
-      moduleStatus={moduleStatus}
-      moduleMemory={moduleMemory}
-      activePipelineId={activePipelineId}
-      onSelectPipeline={onSelectPipeline}
-      onClearPipeline={onClearPipeline}
-      onStartModule={onSelectModule}
-      onCopyTemplateToUser={onCopyTemplateToUser}
-      onDuplicateUserPipeline={onDuplicateUserPipeline}
-      onDeleteUserPipeline={onDeleteUserPipeline}
-      onUpdateUserPipeline={onUpdateUserPipeline}
-      onMoveModuleInUserPipeline={onMoveModuleInUserPipeline}
-      onRemoveModuleFromUserPipeline={onRemoveModuleFromUserPipeline}
-      onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
-      onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
-      onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
-    />
-  );
+  const renderPipelineHub = (tpls, usrs) => (
+  <PipelineHub
+    templatePipelines={tpls}
+    userPipelines={usrs}
+    modules={modules}
+    moduleStatus={moduleStatus}
+    moduleMemory={moduleMemory}
+    activePipelineId={activePipelineId}
+    onSelectPipeline={onSelectPipeline}
+    onClearPipeline={onClearPipeline}
+    onStartModule={onSelectModule}
+    onCopyTemplateToUser={onCopyTemplateToUser}
+    onDuplicateUserPipeline={onDuplicateUserPipeline}
+    onDeleteUserPipeline={onDeleteUserPipeline}
+    onUpdateUserPipeline={onUpdateUserPipeline}
+    onMoveModuleInUserPipeline={onMoveModuleInUserPipeline}
+    onRemoveModuleFromUserPipeline={onRemoveModuleFromUserPipeline}
+    onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
+    onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
+    onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
+  />
+);
 
   let content = null;
   if (selectedModule === 'workflow') {
@@ -142,11 +142,56 @@ function Workspace({
         content = (
           <MainHubModuleView modules={modules} moduleStatus={moduleStatus} onOpenModule={onSelectModule} />
         );
+      } 
+      else if (mainHubSection === 'pipeline-mine') {
+        content = (
+          <PipelineHub
+            templatePipelines={[]} 
+            userPipelines={userPipelines}
+            modules={modules}
+            moduleStatus={moduleStatus}
+            moduleMemory={moduleMemory}
+            activePipelineId={activePipelineId}
+            onSelectPipeline={onSelectPipeline}
+            onClearPipeline={onClearPipeline}
+            onStartModule={onSelectModule}
+            onCopyTemplateToUser={onCopyTemplateToUser}
+            onDuplicateUserPipeline={onDuplicateUserPipeline}
+            onDeleteUserPipeline={onDeleteUserPipeline}
+            onUpdateUserPipeline={onUpdateUserPipeline}
+            onMoveModuleInUserPipeline={onMoveModuleInUserPipeline}
+            onRemoveModuleFromUserPipeline={onRemoveModuleFromUserPipeline}
+            onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
+            onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
+            onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
+          />
+        );
       } else {
-        content = pipelineHubElement;
+        content = (
+          <PipelineHub
+            templatePipelines={pipelines}
+            userPipelines={[]} 
+            modules={modules}
+            moduleStatus={moduleStatus}
+            moduleMemory={moduleMemory}
+            activePipelineId={activePipelineId}
+            onSelectPipeline={onSelectPipeline}
+            onClearPipeline={onClearPipeline}
+            onStartModule={onSelectModule}
+            onCopyTemplateToUser={onCopyTemplateToUser}
+            onDuplicateUserPipeline={onDuplicateUserPipeline}
+            onDeleteUserPipeline={onDeleteUserPipeline}
+            onUpdateUserPipeline={onUpdateUserPipeline}
+            onMoveModuleInUserPipeline={onMoveModuleInUserPipeline}
+            onRemoveModuleFromUserPipeline={onRemoveModuleFromUserPipeline}
+            onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
+            onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
+            onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
+          />
+        );
       }
     } else {
-      content = pipelineHubElement;
+      content = renderPipelineHub(pipelines, userPipelines);
     }
   }
   if (selectedModule === 'diagnosis') {

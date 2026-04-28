@@ -341,7 +341,7 @@ function App() {
   const copyTemplateToUser = (templateId) => {
     const template = PIPELINES.find((p) => p.id === templateId);
     if (!template) return;
-    setMainHubSection('pipeline');
+    //setMainHubSection('pipeline');
     const newPl = {
       id: newEntityId('user'),
       domainKey: template.domainKey,
@@ -356,13 +356,15 @@ function App() {
       autoNamed: false,
     };
     setUserPipelines((prev) => [...prev, newPl]);
-    setActiveUserPipelineId(newPl.id);
-    setActivePipelineId(newPl.id);
+    //setActiveUserPipelineId(newPl.id);
+    //setActivePipelineId(newPl.id);
     setActiveDomainKey(template.domainKey);
     setSelectedModule('workflow');
+    setTimeout(() => {
     appendSystemMessage(
-      `내 파이프라인 "${newPl.title}"이(가) 만들어졌습니다. 왼쪽에서 모듈을 조정할 수 있습니다.`
+      `내 파이프라인 "${newPl.title}"이(가) 만들어졌습니다. '내 파이프라인' 메뉴에서 확인 가능합니다.`
     );
+  }, 100);
   };
 
   const updateUserPipeline = (id, { title, description, clearAutoNamed }) => {
