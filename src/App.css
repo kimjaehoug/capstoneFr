@@ -1735,6 +1735,7 @@ button.active {
   flex-direction: column;
   min-width: 0;
   height: 100%;
+  transition: flex 0.3s ease;
 }
 
 .chat-panel {
@@ -1742,12 +1743,23 @@ button.active {
   flex-shrink: 0;
   height: 100%;
   display: flex;
+  padding: 16px 14px;
+  gap: 12px;
   flex-direction: column;
   background: var(--panel);
   border: 1px solid rgba(180, 195, 210, 0.65);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   overflow: hidden;
+  transition: width 0.3s ease;
+}
+
+.chat-collapsed .chat-panel {
+  width: 40px;
+}
+
+.chat-collapsed .chat-panel .chat-content {
+  display: none;
 }
 
 .workspace-content, .pipeline-detail, .main-hub-modules {
@@ -3631,45 +3643,44 @@ button.active {
   background: #9fb5c9;
 }
 
-.chat-panel {
-  display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
-  padding: 16px 14px;
-  gap: 12px;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .chat-panel--collapsed {
-  display: flex;
-  flex-direction: column;
+  width: 48px;
+  background-color: #f8fafc;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 10px 6px;
-  overflow: hidden;
+  cursor: pointer;
 }
 
 .chat-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.3s;
+}
+
+.chat-panel:not(.chat-panel--collapsed) .chat-collapse-btn {
   align-self: flex-start;
-  margin-left: 0;
-  margin-right: auto;
-  flex-shrink: 0;
 }
 
 .chat-panel--collapsed .chat-collapse-btn {
+  align-self: center;
   margin-left: 0;
   margin-right: 0;
 }
 
 .chat-collapsed-label {
-  writing-mode: vertical-rl;
+  display: flex;
+  flex: 1;        
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl; 
   text-orientation: mixed;
-  letter-spacing: 0.1em;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
+  color: #64748b;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 2px;
+  user-select: none;
+  margin-top: 20px;
 }
 
 .chat-system-note h3 {
@@ -3756,22 +3767,31 @@ button.active {
 }
 
 .chat-messages {
+  flex-grow: 1;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px;
   background: #f9fbfc;
   overflow-y: auto;
-  overflow-x: hidden;
-  display: grid;
+  flex-direction: column;
+  display: flex;
   gap: 8px;
-  min-height: 0;
+  justify-content: flex-start;
 }
 
 .chat-message {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: min-content;
   border: 1px solid #dbe3ea;
   border-radius: 10px;
   background: #fff;
   padding: 8px;
+}
+
+.chat-message p {
+  margin: 0;
+  display: block;
 }
 
 .chat-message.system {

@@ -1147,7 +1147,7 @@ function App() {
           moduleStatus={moduleStatus}
           moduleMemory={moduleMemory}
           collapsed={chatPanelCollapsed}
-          onToggleCollapsed={() => setChatPanelCollapsed((c) => !c)}
+          onToggleCollapsed={() => setChatPanelCollapsed(!chatPanelCollapsed)}
         />
       </div>
     </div>
