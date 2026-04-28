@@ -1,55 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../data/domainModules';
+import './Sidebar.css';
 
 const MAIN_HUB_SECTIONS = [
   { id: 'data', label: '데이터 조회/관리' },
-  { id: 'pipeline', label: '파이프라인 조회/관리' },
+  { 
+    id: 'pipeline', 
+    label: '파이프라인 조회/관리',
+    subItems: [
+      { id: 'pipeline-shared', label: '공유 템플릿' },
+      { id: 'pipeline-mine', label: '내 파이프라인' }
+    ]
+  },
   { id: 'modules', label: '모듈 조회/관리' },
 ];
 
-function SidebarHomeNav({ activeSection, onSelectSection }) {
-  return (
-    <nav className="sidebar-main-nav" aria-label="메인 메뉴">
-      <p className="sidebar-main-nav-hint">메뉴를 선택하면 중앙 영역이 바뀝니다.</p>
-      <ul className="sidebar-main-nav-list">
-        {MAIN_HUB_SECTIONS.map((item, index) => (
-          <li key={item.id}>
-            <button
-              type="button"
-              className={`sidebar-main-nav-item ${activeSection === item.id ? 'active' : ''}`}
-              onClick={() => onSelectSection(item.id)}
-            >
-              <span className="sidebar-main-nav-index">{index + 1}</span>
-              <span className="sidebar-main-nav-label">{item.label}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
-function CollapsibleSection({ id, title, count, open, onToggle, children }) {
-  return (
-    <div className={`sidebar-collapsible ${open ? 'is-open' : ''}`}>
-      <button
-        type="button"
-        className="sidebar-collapsible-toggle"
-        onClick={() => onToggle(id)}
-        aria-expanded={open}
-      >
-        <span className="sidebar-collapsible-chevron" aria-hidden>
-          {open ? '▾' : '▸'}
-        </span>
-        <span className="sidebar-collapsible-label">{title}</span>
-        {count != null ? <span className="sidebar-collapsible-count">{count}</span> : null}
-      </button>
-      {open ? <div className="sidebar-collapsible-body">{children}</div> : null}
-    </div>
-  );
-}
-
 function Sidebar({
+  auth,
+  moveToPath,
+  handleLogout,
+  handleGoHome,
   showModuleSidebar,
   workflowModule,
   baseModules,
@@ -64,274 +34,115 @@ function Sidebar({
   onClearUserPipeline,
   onAddModuleToUserPipeline,
   onRemoveModuleFromUserPipeline,
-  collapsed = false,
-  onToggleCollapsed = () => {},
+  user,
+  onLoginClick
 }) {
+  const [activeDropdown, setActiveDropdown] = useState(false);
   const editingPipeline = Boolean(activeUserPipeline);
-  const [sectionOpen, setSectionOpen] = useState({ base: true, domain: true });
-
-  /** 한 번에 하나의 단계만 펼침 → 세로 스크롤 단축 */
   const [openDomainStageId, setOpenDomainStageId] = useState(null);
 
   const domainAddonGroups = useMemo(() => {
     const grouped = ADDON_PARENT_ORDER.map((parentId) => ({
-      parentId,
-      title: PARENT_CORE_LABELS[parentId],
+      parentId, title: PARENT_CORE_LABELS[parentId],
       modules: domainModules.filter((m) => m.parentCoreModule === parentId),
     })).filter((g) => g.modules.length > 0);
-
-    const stray = domainModules.filter(
-      (m) =>
-        !m.parentCoreModule ||
-        !ADDON_PARENT_ORDER.includes(m.parentCoreModule),
-    );
-    if (stray.length > 0) {
-      grouped.push({
-        parentId: '_other',
-        title: '기타',
-        modules: stray,
-      });
-    }
+    const stray = domainModules.filter((m) => !m.parentCoreModule || !ADDON_PARENT_ORDER.includes(m.parentCoreModule));
+    if (stray.length > 0) grouped.push({ parentId: '_other', title: '기타', modules: stray });
     return grouped;
   }, [domainModules]);
 
-  useEffect(() => {
-    if (
-      openDomainStageId &&
-      !domainAddonGroups.some((g) => g.parentId === openDomainStageId)
-    ) {
-      setOpenDomainStageId(null);
-    }
-  }, [domainAddonGroups, openDomainStageId]);
-
-  const toggleDomainStage = (parentId) => {
-    setOpenDomainStageId((cur) => (cur === parentId ? null : parentId));
-  };
-
-  const toggleSection = (sid) => {
-    setSectionOpen((prev) => ({ ...prev, [sid]: !prev[sid] }));
-  };
-
   const renderModuleButton = (module, { domainStyle, compact } = {}) => {
     const status = moduleStatus[module.id];
-
-    if (module.id === 'workflow') {
-      return (
-        <button
-          key={module.id}
-          type="button"
-          className={`module-button ${moduleSidebarFocus === module.id ? 'active' : ''}`}
-          title="클릭: 선택 · 더블클릭: 허브/설정 화면"
-          onClick={() => onModuleSidebarFocus(module.id)}
-          onDoubleClick={() => onOpenModuleSettings(module.id)}
-        >
-          <span className="module-label-row">
-            <span className="module-label">{module.label}</span>
-            <span className={`status-dot ${status?.state || 'draft'}`} />
-          </span>
-          <span className="module-description">{module.description}</span>
-          {status && <span className="module-meta">{status.summary}</span>}
-        </button>
-      );
-    }
-
-    const inPipeline =
-      editingPipeline && activeUserPipeline.moduleIds.includes(module.id);
-    const canRemove = editingPipeline && activeUserPipeline.moduleIds.length > 1;
-
-    const hoverTitle = compact
-      ? `${module.label}\n${module.description || ''}\n\n클릭: 선택 · 더블클릭: 설정`
-      : '클릭: 선택 · 더블클릭: 설정 화면';
-
+    const inPipeline = editingPipeline && activeUserPipeline.moduleIds.includes(module.id);
     return (
-      <div key={module.id} className="module-row">
-        <button
-          type="button"
-          className={`module-button ${domainStyle ? 'module-button-domain' : ''} ${
-            compact ? 'module-button--compact' : ''
-          } ${moduleSidebarFocus === module.id ? 'active' : ''} ${
-            editingPipeline && !inPipeline ? 'module-button-dim' : ''
-          }`}
-          title={hoverTitle}
-          onClick={() => onModuleSidebarFocus(module.id)}
-          onDoubleClick={() => onOpenModuleSettings(module.id)}
-        >
-          <span className="module-label-row">
-            <span className="module-label">{module.label}</span>
-            <span className={`status-dot ${status?.state || 'draft'}`} />
-          </span>
-          {!compact && (
-            <>
-              <span className="module-description">{module.description}</span>
-              {status && <span className="module-meta">{status.summary}</span>}
-            </>
-          )}
+      <div key={module.id} className="header-module-item">
+        <button type="button" className={`header-module-btn ${moduleSidebarFocus === module.id ? 'active' : ''}`}
+          onClick={() => onModuleSidebarFocus(module.id)}>
+          <span className="module-name">{module.label}</span>
+          <span className={`status-dot ${status?.state || 'draft'}`} />
         </button>
-        {editingPipeline && (
-          <div className="module-pipeline-actions">
-            {inPipeline ? (
-              <button
-                type="button"
-                className="module-pipeline-toggle remove"
-                disabled={!canRemove}
-                title={canRemove ? '파이프라인에서 제거' : '최소 1개 모듈은 필요합니다'}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onRemoveModuleFromUserPipeline(module.id);
-                }}
-              >
-                −
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="module-pipeline-toggle add"
-                title="파이프라인에 추가"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onAddModuleToUserPipeline(module.id);
-                }}
-              >
-                +
-              </button>
-            )}
-          </div>
-        )}
       </div>
     );
   };
 
-  if (collapsed) {
-    return (
-      <aside className="sidebar sidebar--collapsed panel" aria-label="접힌 메뉴">
-        <button
-          type="button"
-          className="sidebar-rail-expand"
-          onClick={onToggleCollapsed}
-          title="메뉴 펼치기"
-        >
-          <span className="sidebar-rail-chevron" aria-hidden>
-            »
-          </span>
-          <span className="sidebar-rail-text">메뉴</span>
-        </button>
-      </aside>
-    );
-  }
-
   return (
-    <aside className="sidebar panel">
-      <div className="sidebar-header-row">
-        <div className="sidebar-brand">
-          <h1 className="sidebar-title">AI Workbench</h1>
-          <span className="sidebar-badge">Beta</span>
-        </div>
-        <button
-          type="button"
-          className="sidebar-collapse-btn"
-          onClick={onToggleCollapsed}
-          title="메뉴 접기"
-          aria-label="왼쪽 메뉴 접기"
-        >
-          «
-        </button>
-      </div>
-      <p className={`sidebar-subtitle ${showModuleSidebar ? '' : 'sidebar-subtitle-home'}`}>
-        {showModuleSidebar
-          ? '모듈별 저장본을 기준으로 유연하게 이동합니다. 목록은 한 번 클릭해 선택, 두 번 클릭해 설정 화면으로 엽니다.'
-          : '메뉴에서 영역을 고른 뒤 중앙에서 작업합니다.'}
-      </p>
-
-      {!showModuleSidebar ? (
-        <SidebarHomeNav activeSection={mainHubSection} onSelectSection={onMainHubSectionChange} />
-      ) : (
-        <>
-          {editingPipeline && (
-            <div className="sidebar-pipeline-edit">
-              <div className="sidebar-pipeline-edit-head">
-                <span className="sidebar-pipeline-label">내 파이프라인 편집</span>
-                <button type="button" className="sidebar-pipeline-clear" onClick={onClearUserPipeline}>
-                  종료
-                </button>
-              </div>
-              <p className="sidebar-pipeline-title" title={activeUserPipeline.title}>
-                {activeUserPipeline.title}
-              </p>
-              <p className="sidebar-pipeline-hint">+ / − 로 파이프라인에 모듈을 넣거나 뺍니다.</p>
+    <header className="integrated-header">
+      <div className="header-inner">
+        <div className="header-left-group">
+          <button type="button" className="header-brand-btn" onClick={handleGoHome} aria-label="처음 화면으로 이동">
+            <div className="login-logo-header">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
             </div>
-          )}
+            <span className="brand-name">WWorkbench</span>
+          </button>
 
-          <div className="module-list module-list-categorized">
-            {renderModuleButton(workflowModule, { domainStyle: false })}
+          <nav className="header-nav-menu">
+            <ul className="nav-list">
+              {MAIN_HUB_SECTIONS.map((item) => (
+                <li 
+                  key={item.id} 
+                  className="nav-item-wrapper"
+                  onMouseEnter={() => item.subItems && setActiveDropdown(true)}
+                  onMouseLeave={() => setActiveDropdown(false)}
+                >
+                  <button
+                    type="button"
+                    className={`nav-link-btn ${mainHubSection.startsWith(item.id) ? 'active' : ''}`}
+                    onClick={() => !item.subItems && onMainHubSectionChange(item.id)}
+                  >
+                    {item.label}
+                    {item.subItems && <span className="arrow-down">▾</span>}
+                  </button>
 
-            <CollapsibleSection
-              id="base"
-              title="기본 모듈"
-              count={baseModules.length}
-              open={sectionOpen.base}
-              onToggle={toggleSection}
-            >
-              <div className="sidebar-module-stack">{baseModules.map((m) => renderModuleButton(m))}</div>
-            </CollapsibleSection>
-
-            {domainModules.length > 0 ? (
-              <CollapsibleSection
-                id="domain"
-                title="도메인 모듈"
-                count={domainModules.length}
-                open={sectionOpen.domain}
-                onToggle={toggleSection}
-              >
-                <div className="sidebar-domain-wrap">
-                  <p className="sidebar-domain-hint">
-                    단계 행을 눌러 펼치면 해당 부가 모듈만 보입니다.
-                  </p>
-                  <div className="sidebar-domain-accordion" role="list">
-                    {domainAddonGroups.map((group) => {
-                      const isOpen = openDomainStageId === group.parentId;
-                      const idx = ADDON_PARENT_ORDER.indexOf(group.parentId);
-                      return (
-                        <div
-                          key={group.parentId}
-                          className="sidebar-domain-stage"
-                          data-stage={group.parentId}
-                          role="listitem"
+                  {item.subItems && activeDropdown && (
+                    <ul className="header-dropdown-list">
+                      {item.subItems.map((sub) => (
+                        <li 
+                          key={sub.id} 
+                          className={mainHubSection === sub.id ? 'selected' : ''}
+                          onClick={() => {
+                            onMainHubSectionChange(sub.id);
+                            setActiveDropdown(false);
+                          }}
                         >
-                          <button
-                            type="button"
-                            className={`sidebar-domain-stage-toggle ${isOpen ? 'is-open' : ''}`}
-                            aria-expanded={isOpen}
-                            onClick={() => toggleDomainStage(group.parentId)}
-                          >
-                            <span className="sidebar-domain-stage-index" aria-hidden>
-                              {idx >= 0 ? idx + 1 : '—'}
-                            </span>
-                            <span className="sidebar-domain-stage-label">{group.title}</span>
-                            <span className="sidebar-domain-stage-count">{group.modules.length}</span>
-                            <span className="sidebar-domain-stage-chevron" aria-hidden>
-                              {isOpen ? '▾' : '▸'}
-                            </span>
-                          </button>
-                          {isOpen ? (
-                            <div className="sidebar-domain-stage-panel">
-                              {group.modules.map((m) =>
-                                renderModuleButton(m, { domainStyle: true, compact: true }),
-                              )}
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </CollapsibleSection>
-            ) : null}
+                          {sub.label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+
+        <div className="header-right-group">
+          {auth?.user ? (
+            <div className="top-auth-box">
+              <span className="top-auth-name">{auth.user.name || auth.user.email}</span>
+              <button type="button" className="global-login-btn logout" onClick={handleLogout}>
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="global-login-btn" onClick={() => moveToPath('/login')}>
+              로그인
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showModuleSidebar && (
+        <div className="header-edit-toolbar">
+          <div className="module-scroll-row">
+            {renderModuleButton(workflowModule)}
+            {baseModules.map(m => renderModuleButton(m))}
           </div>
-        </>
+        </div>
       )}
-    </aside>
+    </header>
   );
 }
 
