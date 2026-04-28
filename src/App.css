@@ -41,6 +41,8 @@ body {
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  height: 100vh;
+  box-sizing: border-box;
 }
 
 button,
@@ -183,21 +185,24 @@ button.active {
 }
 
 .app-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px; 
-  height: calc(100vh - 62px - 20px);
+  display: flex;
+  flex: 1;
+  height: 100%;
   gap: 14px;
-  padding: 14px 14px 0;
+  min-width: 0;
   box-sizing: border-box;
-  max-width: 100%;
-  margin-bottom: 20px;
-  transition: grid-template-columns 0.22s ease;
-  overflow: visible;
+}
+
+.app-shell.has-sidebar {
+  padding-left: 316px; 
 }
 
 .app-root {
-  min-height: 100vh;
-  position: relative;
+  display: flex;
+  height: calc(100vh - 62px);
+  padding: 14px;
+  gap: 14px;
+  box-sizing: border-box;
 }
 
 .app-topbar {
@@ -1269,14 +1274,12 @@ button.active {
   color: var(--text-sub);
 }
 
-/* 기본 구조 모듈: 호버 시 카드 톤 변경 + 요약 문단이 상세 문구로 교체 */
 .main-hub-module-card-wrap--detail-hover:hover .main-hub-module-card {
   background: linear-gradient(180deg, #f5f9fd 0%, #e8f1fa 100%);
   border-color: var(--accent-border);
   box-shadow: inset 0 0 0 1px rgba(44, 77, 110, 0.06), var(--shadow-sm);
 }
 
-/* 요약/상세 전환 시 카드 높이가 들쭉날쭉하지 않도록 텍스트 영역 높이 고정 */
 .main-hub-module-card-wrap--detail-hover .main-hub-module-card-summary-slot {
   height: 3.5em;
   min-height: 3.5em;
@@ -1702,18 +1705,31 @@ button.active {
   color: #7a8793;
 }
 
-.workspace-area, .chat-panel {
-  height: 100%;
-  min-height: 0;
+.workspace-area {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  margin-bottom: 0;
+  min-width: 0;
+  height: 100%;
 }
 
-.workspace-content, 
-.pipeline-detail, 
-.main-hub-modules {
-  padding-bottom: 4px; 
+.chat-panel {
+  width: 360px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid rgba(180, 195, 210, 0.65);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.workspace-content, .pipeline-detail, .main-hub-modules {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 24px; 
 }
 
 .workspace {
@@ -1971,7 +1987,6 @@ button.active {
   margin: 0 auto;
 }
 
-/* ─── 파이프라인 B구조: 고정 6단계 가로 타임라인 ─── */
 .pipeline-timeline {
   margin-top: 14px;
   padding: 14px 14px 16px;
@@ -2131,7 +2146,6 @@ button.active {
   overflow: hidden;
 }
 
-/* 상세 단일 패널: 좁은 칼럼용 max-width 무시 */
 .pipeline-stage-column.pipeline-stage-column--detail {
   max-width: none;
   width: 100%;
@@ -2230,7 +2244,6 @@ button.active {
   background: linear-gradient(180deg, #e9eef5 0%, #e3e9f2 100%);
 }
 
-/* 기본 단계 아래에 ‘액세서리’처럼 붙는 부가 영역 — 시각적 무게 축소 */
 .pipeline-stage-addon-well {
   flex: 1;
   min-height: 0;
@@ -2311,7 +2324,6 @@ button.active {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-/* 제목 전체 폭 사용 → 좁은 칼럼에서 글자가 세로로 쌓이는 현상 방지 */
 .pipeline-stage-addon-block {
   display: flex;
   flex-direction: column;
@@ -2329,7 +2341,6 @@ button.active {
   min-width: 0;
 }
 
-/* 전역 input { width:100% } 에서 체크박스만 예외 — 안 하면 제목 영역이 사라짐 */
 .pipeline-stage-addon-input[type='checkbox'] {
   width: 16px !important;
   min-width: 16px !important;
@@ -3362,7 +3373,6 @@ button.active {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-/* 모듈 허브: 넓은 화면에서 열 수를 늘려 세로 스크롤 단축 (일반 .card-grid보다 뒤에 둠) */
 @media (min-width: 900px) {
   .card-grid.main-hub-module-grid--core {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3375,7 +3385,6 @@ button.active {
   }
 }
 
-/* 부가 구조 모듈 카드: 한 행·한 열 안에서 박스 크기 통일 */
 .card-grid.main-hub-module-grid--addon > .main-hub-module-card-wrap {
   display: flex;
   min-height: 0;

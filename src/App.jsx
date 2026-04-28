@@ -938,7 +938,12 @@ function App() {
           baseModules={MODULES.slice(1)}
           domainModules={domainSidebarModules}
           mainHubSection={mainHubSection}
-          onMainHubSectionChange={setMainHubSection}
+          onMainHubSectionChange={(id) => {
+            setMainHubSection(id);
+            setActivePipelineId(null);
+            setActiveUserPipelineId(null);
+            setActiveDomainKey(null);
+          }}
           moduleSidebarFocus={moduleSidebarFocus}
           onModuleSidebarFocus={handleModuleSidebarFocus}
           onOpenModuleSettings={handleSelectModule}
