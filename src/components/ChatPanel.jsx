@@ -115,13 +115,20 @@ function ChatPanel({
           </div>
 
           <div className="chat-messages" ref={messagesRef}>
-            {messages.map((message) => (
-              <div key={message.id} className={`chat-message ${message.role}`}>
+            {messages.map((message, index) => {
+              const isLatest = index === messages.length - 1;
+
+              return (
+                <div
+                  key={message.id}
+                  className={`chat-message ${message.role} ${isLatest ? 'latest-message' : ''}`}
+                >
                 <span className="chat-role">{message.role}</span>
                 <p>{message.text}</p>
               </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
           <form className="chat-input-row" onSubmit={handleSubmit}>
             <input

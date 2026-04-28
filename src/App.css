@@ -3773,6 +3773,10 @@ button.active {
   border-color: #cfdbe7;
 }
 
+.chat-message.latest-message {
+  animation: highlight-fade 3s ease-out forwards;
+}
+
 .chat-role {
   display: inline-block;
   margin-bottom: 4px;
@@ -3875,5 +3879,22 @@ button.active {
 
   .table-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@keyframes highlight-fade {
+  0% {
+    background: linear-gradient(180deg, #f7fbff 0%, #edf4fb 100%);
+    border: 1px solid #2c4d6e; 
+    box-shadow: 0 2px 8px rgba(44, 77, 110, 0.15);
+  }
+  70% {
+    background: linear-gradient(180deg, #f7fbff 0%, #edf4fb 100%);
+    border: 1px solid #2c4d6e;
+    box-shadow: 0 2px 8px rgba(44, 77, 110, 0.15);
+  }
+  100% {
+    border: 1px solid inherit; 
+    box-shadow: none;
   }
 }
