@@ -60,6 +60,7 @@ function Workspace({
   onMainHubSectionChange,
   dataSources,
   onAddDataSource,
+  onUpdateDataSource,
   onDeleteDataSource,
   onConnectDataToPipeline,
   onCreatePipelineAndLinkData,
@@ -133,6 +134,7 @@ function Workspace({
             templatePipelines={pipelines}
             userPipelines={userPipelines}
             onAddDataSource={onAddDataSource}
+            onUpdateDataSource={onUpdateDataSource}
             onDeleteDataSource={onDeleteDataSource}
             onConnectToPipeline={onConnectDataToPipeline}
             onCreatePipelineAndLinkData={onCreatePipelineAndLinkData}

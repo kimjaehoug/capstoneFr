@@ -149,6 +149,10 @@ function App() {
   const [currentPath, setCurrentPath] = useState(() =>
     typeof window === 'undefined' ? '/' : window.location.pathname || '/'
   );
+
+  const [isDataDeleteModalOpen, setIsDataDeleteModalOpen] = useState(false);
+  const [dataSourceToDelete, setDataSourceToDelete] = useState(null);
+
   const [selectedModule, setSelectedModule] = useState('workflow');
   /** 사이드바 목록에서 한 번 클릭으로만 바뀌는 강조(설정 화면은 더블클릭) */
   const [moduleSidebarFocus, setModuleSidebarFocus] = useState('workflow');
@@ -283,8 +287,29 @@ function App() {
     ]);
   };
 
+  const updateDataSource = (updatedData) => {
+  setDataSources((prev) => 
+    prev.map((item) => (item.id === updatedData.id ? { ...item, ...updatedData, updated: '방금 수정' } : item))
+  );
+  appendSystemMessage(`"${updatedData.name}" 데이터 정보가 수정되었습니다.`);
+};
+
   const deleteDataSource = (id) => {
+    const target = dataSources.find((d) => d.id === id);
+    if (!target) return;
+    setDataSourceToDelete(target);
+    setIsDataDeleteModalOpen(true);
+  };
+
+  const confirmDataDelete = () => {
+    if (!dataSourceToDelete) return;
+
+    const {id, name} = dataSourceToDelete;
     setDataSources((prev) => prev.filter((d) => d.id !== id));
+    appendSystemMessage(`"${name}" 데이터셋이 삭제되었습니다.`);
+
+    setIsDataDeleteModalOpen(false);
+    setDataSourceToDelete(null);
   };
 
   const connectDataToPipeline = (pipelineId) => {
@@ -471,13 +496,11 @@ function App() {
     const pl = userPipelines.find((p) => p.id === id);
     if (!pl) return;
     
-    // 1. 기본 팝업 대신 삭제할 ID를 저장하고 모달을 엽니다.
     setPipelineToDelete(pl); 
     setIsDeleteModalOpen(true);
 };
 
-// 2. 실제 삭제를 수행할 함수 (모달의 '예' 버튼에 연결)
-const confirmDelete = () => {
+  const confirmDelete = () => {
     if (!pipelineToDelete) return;
     
     const id = pipelineToDelete.id;
@@ -1030,6 +1053,7 @@ const confirmDelete = () => {
             onMainHubSectionChange={setMainHubSection}
             dataSources={dataSources}
             onAddDataSource={addDataSource}
+            onUpdateDataSource={updateDataSource}
             onDeleteDataSource={deleteDataSource}
             onConnectDataToPipeline={connectDataToPipeline}
             onCreatePipelineAndLinkData={createPipelineAndLinkData}
@@ -1069,7 +1093,7 @@ const confirmDelete = () => {
       {isDeleteModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3>삭제 확인</h3>
+            <h3>파이프라인 삭제</h3>
             <p>
               <strong>"{pipelineToDelete?.title}"</strong><br/>
               이 파이프라인을 정말 삭제하시겠습니까?
@@ -1082,6 +1106,32 @@ const confirmDelete = () => {
                 삭제하기
               </button>
               <button className="btn-modal-secondary" onClick={() => setIsDeleteModalOpen(false)}>
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDataDeleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>데이터 삭제</h3>
+            <p>
+              <strong>"{dataSourceToDelete?.name}"</strong><br/>
+              이 데이터셋을 정말 삭제하시겠습니까?
+            </p>
+            <div className="modal-actions">
+              <button 
+                className="btn-modal-delete-primary"
+                onClick={confirmDataDelete}
+              >
+                삭제하기
+              </button>
+              <button 
+                className="btn-modal-secondary" 
+                onClick={() => setIsDataDeleteModalOpen(false)}
+              >
                 취소
               </button>
             </div>

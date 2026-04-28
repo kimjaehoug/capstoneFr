@@ -31,6 +31,7 @@ function MainHubDataView({
   templatePipelines,
   userPipelines,
   onAddDataSource,
+  onUpdateDataSource,
   onDeleteDataSource,
   onConnectToPipeline,
   onCreatePipelineAndLinkData,
@@ -52,6 +53,7 @@ function MainHubDataView({
   const [dataModality, setDataModality] = useState('');
   const [rowUnit, setRowUnit] = useState('');
   const [sensitivityNote, setSensitivityNote] = useState('');
+  const [editingId, setEditingId] = useState(null);
 
   const pipelineOptions = useMemo(() => {
     const templates = templatePipelines.map((p) => ({ ...p, kind: 'template' }));
@@ -98,8 +100,24 @@ function MainHubDataView({
   };
 
   const closeForm = () => {
-    setDataFormView('list');
-    resetFormFields();
+  setDataFormView('list');
+  setEditingId(null);
+  resetFormFields();
+};
+
+  const handleEditInternal = (record) => {
+    setEditingId(record.id);
+    setName(record.name);
+    setSource(record.source);
+    setRowsLabel(record.rows);
+    setDomainIndustryContext(record.domainIndustryContext || '');
+    setDomainSubjectScope(record.domainSubjectScope || '');
+    setDomainRegulationScope(record.domainRegulationScope || '');
+    setDomainStakeholderNotes(record.domainStakeholderNotes || '');
+    setDataModality(record.dataModality || '');
+    setRowUnit(record.rowUnit || '');
+    setSensitivityNote(record.sensitivityNote || '');
+    setDataFormView('form'); 
   };
 
   const handleAiSuggest = () => {
@@ -130,6 +148,16 @@ function MainHubDataView({
 
     const extra = domainPayload();
 
+    if (editingId) {
+      onUpdateDataSource({
+        id: editingId,
+        name: n,
+        source: source.trim() || '미지정',
+        linkedPipelineId: linkedPipelineId,
+        rowsLabel: rowsLabel.trim() || '-',
+        ...extra,
+      });
+    } else {
     if (linkMode === 'new') {
       const tid = baseTemplateId || firstTemplateId;
       if (!tid) return;
@@ -153,7 +181,7 @@ function MainHubDataView({
         ...extra,
       });
     }
-
+  }
     closeForm();
   };
 
@@ -371,7 +399,7 @@ function MainHubDataView({
             (linkMode === 'new' && !firstTemplateId)
           }
         >
-          등록
+          {editingId ? '수정' : '등록'}
         </button>
       </div>
     </form>
@@ -477,6 +505,14 @@ function MainHubDataView({
                       onClick={() => r.linkedPipelineId && onConnectToPipeline(r.linkedPipelineId)}
                     >
                       파이프라인 연결
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-edit"
+                      onClick={() => handleEditInternal(r)}
+                      aria-label={`${r.name} 수정`}
+                    >
+                      수정
                     </button>
                     <button
                       type="button"

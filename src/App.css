@@ -1061,9 +1061,9 @@ button.active {
 
 .main-hub-actions-cell {
   display: flex;
-  flex-wrap: wrap;
+  white-space: nowrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px;
 }
 
@@ -1086,6 +1086,15 @@ button.active {
 .btn-pipeline-link:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.btn-edit {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-color: var(--accent-border);
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .btn-row-delete {
