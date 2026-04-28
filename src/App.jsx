@@ -140,6 +140,12 @@ function createInitialModuleMemory() {
 }
 
 function App() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingPipelineId, setPendingPipelineId] = useState(null);
+  const [pendingTitle, setPendingTitle] = useState("");
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [pipelineToDelete, setPipelineToDelete] = useState(null);
   const [currentPath, setCurrentPath] = useState(() =>
     typeof window === 'undefined' ? '/' : window.location.pathname || '/'
   );
@@ -356,15 +362,18 @@ function App() {
       autoNamed: false,
     };
     setUserPipelines((prev) => [...prev, newPl]);
-    //setActiveUserPipelineId(newPl.id);
-    //setActivePipelineId(newPl.id);
+
+    setPendingPipelineId(newPl.id);
+    setPendingTitle(template.title);
+    setIsModalOpen(true);
+
     setActiveDomainKey(template.domainKey);
-    setSelectedModule('workflow');
+  
     setTimeout(() => {
-    appendSystemMessage(
-      `내 파이프라인 "${newPl.title}"이(가) 만들어졌습니다. '내 파이프라인' 메뉴에서 확인 가능합니다.`
-    );
-  }, 100);
+      appendSystemMessage(
+        `내 파이프라인 "${newPl.title}"이(가) 만들어졌습니다. '내 파이프라인' 메뉴에서 확인 가능합니다.`
+      );
+    }, 100);
   };
 
   const updateUserPipeline = (id, { title, description, clearAutoNamed }) => {
@@ -461,15 +470,29 @@ function App() {
   const deleteUserPipeline = (id) => {
     const pl = userPipelines.find((p) => p.id === id);
     if (!pl) return;
-    if (!window.confirm(`"${pl.title}" 파이프라인을 삭제할까요?`)) return;
+    
+    // 1. 기본 팝업 대신 삭제할 ID를 저장하고 모달을 엽니다.
+    setPipelineToDelete(pl); 
+    setIsDeleteModalOpen(true);
+};
+
+// 2. 실제 삭제를 수행할 함수 (모달의 '예' 버튼에 연결)
+const confirmDelete = () => {
+    if (!pipelineToDelete) return;
+    
+    const id = pipelineToDelete.id;
     setUserPipelines((prev) => prev.filter((p) => p.id !== id));
+    
     if (activeUserPipelineId === id) setActiveUserPipelineId(null);
     if (activePipelineId === id) {
-      setActivePipelineId(null);
-      setActiveDomainKey(null);
+        setActivePipelineId(null);
+        setActiveDomainKey(null);
     }
-    appendSystemMessage('파이프라인이 삭제되었습니다.');
-  };
+    
+    appendSystemMessage(`"${pipelineToDelete.title}" 파이프라인이 삭제되었습니다.`);
+    setIsDeleteModalOpen(false);
+    setPipelineToDelete(null);
+};
 
   const addModuleToUserPipeline = (moduleId) => {
     if (!activeUserPipelineId) return;
@@ -1020,6 +1043,51 @@ function App() {
             onStartPipelineFromModule={startPipelineFromModule}
           />
         </main>
+
+        {isModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>알림</h3>
+            <p>
+            <strong>"{pendingTitle}"</strong>이 복사되었습니다.<br/>
+            '내 파이프라인' 메뉴에서 확인하시겠습니까?
+            </p>
+            <div className="modal-actions">
+              <button className="btn-modal-primary" onClick={() => {
+                setMainHubSection('pipeline-mine');
+                //setActiveUserPipelineId(pendingPipelineId);
+                //setActivePipelineId(null);
+                setSelectedModule('workflow');
+                setIsModalOpen(false);
+              }}>예</button>
+              <button className="btn-modal-secondary" onClick={() => setIsModalOpen(false)}>아니오</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>삭제 확인</h3>
+            <p>
+              <strong>"{pipelineToDelete?.title}"</strong><br/>
+              이 파이프라인을 정말 삭제하시겠습니까?
+            </p>
+            <div className="modal-actions">
+              <button 
+                className="btn-modal-delete-primary" 
+                onClick={confirmDelete}
+              >
+                삭제하기
+              </button>
+              <button className="btn-modal-secondary" onClick={() => setIsDeleteModalOpen(false)}>
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
         <ChatPanel
           messages={chatMessages}
