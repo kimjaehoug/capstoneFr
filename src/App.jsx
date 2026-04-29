@@ -6,7 +6,6 @@ import LoginPage from './components/LoginPage';
 import { PIPELINES } from './data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
-import { defaultLayoutFromIds } from './utils/pipelineLayout';
 import { clearAuthState, loadAuthState, logout, saveAuthState } from './utils/auth';
 import { isApiError, setUnauthorizedHandler } from './api/client';
 import {
@@ -17,19 +16,22 @@ import {
   updateDataSourceLinkedPipeline as updateDataSourceLinkedPipelineApi,
 } from './api/dataSources';
 import {
+  addPipelineModule as addPipelineModuleApi,
+  connectPipelineAfter as connectPipelineAfterApi,
+  createPipeline as createPipelineApi,
   copyPipelineTemplate as copyPipelineTemplateApi,
   deletePipeline as deletePipelineApi,
+  disconnectPipelineAfter as disconnectPipelineAfterApi,
   duplicatePipeline as duplicatePipelineApi,
   listPipelines as listPipelinesApi,
   listPipelineTemplates as listPipelineTemplatesApi,
+  removePipelineModule as removePipelineModuleApi,
+  reorderPipelineModules as reorderPipelineModulesApi,
+  updatePipelineModulePosition as updatePipelineModulePositionApi,
   updatePipeline as updatePipelineApi,
 } from './api/pipelines';
 import {
-  connectAfterReorder,
-  defaultConnectedAfter,
-  mergeConnectionsAfterRemove,
   normalizeConnectedAfter,
-  reconnectAfterReorder,
 } from './utils/pipelineConnections';
 
 const MODULES = [
@@ -101,15 +103,6 @@ const SAVEABLE_MODULES = [
 ];
 
 const USER_PIPELINES_KEY = 'ai-workbench-user-pipelines';
-
-/** http 등 비보안 컨텍스트에서도 동작하도록 UUID 대체 포함 */
-function newEntityId(prefix) {
-  const suffix =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-  return `${prefix}-${suffix}`;
-}
 
 function migrateUserPipeline(p) {
   const labelMap = { 의료: 'medical', 금융: 'finance', 제조: 'manufacturing' };
@@ -187,12 +180,6 @@ function connectedAfterIdsToFlags(moduleIds, connectedAfterIds) {
   if (!Array.isArray(moduleIds) || moduleIds.length <= 1) return [];
   const ids = Array.isArray(connectedAfterIds) ? connectedAfterIds : [];
   return moduleIds.slice(0, -1).map((moduleId) => ids.includes(moduleId));
-}
-
-function connectedAfterFlagsToIds(moduleIds, connectedAfterFlags) {
-  if (!Array.isArray(moduleIds) || moduleIds.length <= 1) return [];
-  const flags = normalizeConnectedAfter(moduleIds, connectedAfterFlags);
-  return moduleIds.slice(0, -1).filter((moduleId, index) => Boolean(flags[index]));
 }
 
 function mapPipelineRecordToUi(record) {
@@ -720,133 +707,90 @@ function App() {
     }
   };
 
-  const addModuleToUserPipeline = (moduleId) => {
+  const addModuleToUserPipeline = async (moduleId) => {
     if (!activeUserPipelineId) return;
     const def = ALL_MODULE_CATALOG.find((m) => m.id === moduleId);
     const pl = userPipelines.find((p) => p.id === activeUserPipelineId);
     if (def?.domainKey && pl?.domainKey && def.domainKey !== pl.domainKey) return;
-    setUserPipelines((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeUserPipelineId) return p;
-        if (p.moduleIds.includes(moduleId)) return p;
-        const deps = Array.isArray(def?.pipelineFrom) ? def.pipelineFrom : [];
-        let insertIndex = p.moduleIds.length;
-        const depIndexes = deps
-          .map((depId) => p.moduleIds.indexOf(depId))
-          .filter((idx) => idx >= 0);
-        if (depIndexes.length > 0) {
-          insertIndex = Math.max(...depIndexes) + 1;
-        } else {
-          const newModuleOrder = MODULES.findIndex((m) => m.id === moduleId);
-          if (newModuleOrder >= 0) {
-            const nextOrderedIndex = p.moduleIds.findIndex((id) => {
-              const currentOrder = MODULES.findIndex((m) => m.id === id);
-              return currentOrder > newModuleOrder;
-            });
-            if (nextOrderedIndex >= 0) insertIndex = nextOrderedIndex;
-          }
-        }
-        const nextIds = [...p.moduleIds];
-        nextIds.splice(insertIndex, 0, moduleId);
-        const layout = { ...(p.moduleLayout || {}) };
-        const prevId = nextIds[insertIndex - 1];
-        const nextId = nextIds[insertIndex + 1];
-        if (prevId && nextId && layout[prevId] && layout[nextId]) {
-          layout[moduleId] = {
-            x: Math.round((layout[prevId].x + layout[nextId].x) / 2),
-            y: Math.round((layout[prevId].y + layout[nextId].y) / 2),
-          };
-        } else if (prevId && layout[prevId]) {
-          layout[moduleId] = { x: layout[prevId].x + 120, y: layout[prevId].y + 60 };
-        } else if (nextId && layout[nextId]) {
-          layout[moduleId] = { x: Math.max(40, layout[nextId].x - 120), y: Math.max(40, layout[nextId].y - 60) };
-        } else {
-          layout[moduleId] = { x: 160 + nextIds.length * 48, y: 160 + nextIds.length * 48 };
-        }
-        const prevConn = normalizeConnectedAfter(p.moduleIds, p.connectedAfter);
-        const nextConn = Array(nextIds.length - 1).fill(false);
-        for (let i = 0; i < p.moduleIds.length - 1; i++) {
-          if (!prevConn[i]) continue;
-          const from = p.moduleIds[i];
-          const to = p.moduleIds[i + 1];
-          const fromIdx = nextIds.indexOf(from);
-          if (fromIdx >= 0 && nextIds[fromIdx + 1] === to) {
-            nextConn[fromIdx] = true;
-          }
-        }
-        return {
-          ...p,
-          moduleIds: nextIds,
-          connectedAfter: nextConn,
-          moduleLayout: layout,
-        };
-      })
-    );
+    try {
+      const updated = await addPipelineModuleApi(activeUserPipelineId, { moduleId });
+      setUserPipelines((prev) =>
+        prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)),
+      );
+    } catch (error) {
+      if (isApiError(error) && (error.status === 400 || error.status === 409)) {
+        appendSystemMessage(`모듈 추가 실패: ${error.message}`);
+        return;
+      }
+      appendSystemMessage('모듈 추가에 실패했습니다. 목록을 다시 불러옵니다.');
+      await reloadUserPipelines();
+    }
   };
 
-  const removeModuleFromUserPipeline = (moduleId) => {
+  const removeModuleFromUserPipeline = async (moduleId) => {
     if (!activeUserPipelineId) return;
-    setUserPipelines((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeUserPipelineId) return p;
-        if (p.moduleIds.length <= 1) return p;
-        if (!p.moduleIds.includes(moduleId)) return p;
-        const layout = { ...(p.moduleLayout || {}) };
-        delete layout[moduleId];
-        const { moduleIds: newIds, connectedAfter: newConn } = mergeConnectionsAfterRemove(
-          p.moduleIds,
-          p.connectedAfter,
-          moduleId
-        );
-        return { ...p, moduleIds: newIds, connectedAfter: newConn, moduleLayout: layout };
-      })
-    );
+    try {
+      const updated = await removePipelineModuleApi(activeUserPipelineId, moduleId);
+      setUserPipelines((prev) =>
+        prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)),
+      );
+    } catch (error) {
+      if (isApiError(error) && (error.status === 400 || error.status === 409)) {
+        appendSystemMessage(`모듈 삭제 실패: ${error.message}`);
+        return;
+      }
+      appendSystemMessage('모듈 삭제에 실패했습니다. 목록을 다시 불러옵니다.');
+      await reloadUserPipelines();
+    }
   };
 
-  const moveModuleInUserPipeline = (fromIndex, toIndex) => {
+  const moveModuleInUserPipeline = async (fromIndex, toIndex) => {
     if (!activeUserPipelineId) return;
-    setUserPipelines((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeUserPipelineId) return p;
-        const n = p.moduleIds.length;
-        if (fromIndex < 0 || fromIndex >= n || toIndex < 0 || toIndex >= n) return p;
-        if (fromIndex === toIndex) return p;
-        const oldIds = [...p.moduleIds];
-        const oldConn = normalizeConnectedAfter(oldIds, p.connectedAfter);
-        const next = [...oldIds];
-        const [item] = next.splice(fromIndex, 1);
-        next.splice(toIndex, 0, item);
-        const newConn = reconnectAfterReorder(oldIds, oldConn, next);
-        return { ...p, moduleIds: next, connectedAfter: newConn };
-      })
-    );
+    const current = userPipelines.find((p) => p.id === activeUserPipelineId);
+    if (!current) return;
+    const n = current.moduleIds.length;
+    if (fromIndex < 0 || fromIndex >= n || toIndex < 0 || toIndex >= n || fromIndex === toIndex) return;
+    const next = [...current.moduleIds];
+    const [item] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, item);
+    try {
+      const updated = await reorderPipelineModulesApi(activeUserPipelineId, next);
+      setUserPipelines((prev) =>
+        prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)),
+      );
+    } catch (error) {
+      appendSystemMessage(`모듈 순서 변경 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      await reloadUserPipelines();
+    }
   };
 
   /** 실행 순서에서 toModuleId를 fromModuleId 바로 뒤로 옮김 (출력→입력 드래그 연결) */
-  const connectModuleAfterInUserPipeline = (fromModuleId, toModuleId) => {
+  const connectModuleAfterInUserPipeline = async (fromModuleId, toModuleId) => {
     if (!activeUserPipelineId || fromModuleId === toModuleId) return;
-    setUserPipelines((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeUserPipelineId) return p;
-        const oldIds = [...p.moduleIds];
-        const oldConn = normalizeConnectedAfter(oldIds, p.connectedAfter);
-        const ids = [...oldIds];
-        const iFrom = ids.indexOf(fromModuleId);
-        const iTo = ids.indexOf(toModuleId);
-        if (iFrom === -1 || iTo === -1) return p;
-        if (iTo === iFrom + 1) {
-          if (oldConn[iFrom]) return p;
-          const nextConn = [...oldConn];
-          nextConn[iFrom] = true;
-          return { ...p, connectedAfter: nextConn };
-        }
+    const current = userPipelines.find((p) => p.id === activeUserPipelineId);
+    if (!current) return;
+    const ids = [...current.moduleIds];
+    const iFrom = ids.indexOf(fromModuleId);
+    const iTo = ids.indexOf(toModuleId);
+    if (iFrom === -1 || iTo === -1) return;
+    try {
+      if (iTo !== iFrom + 1) {
         ids.splice(iTo, 1);
         const newFrom = ids.indexOf(fromModuleId);
         ids.splice(newFrom + 1, 0, toModuleId);
-        const newConn = connectAfterReorder(oldIds, oldConn, ids, fromModuleId, toModuleId);
-        return { ...p, moduleIds: ids, connectedAfter: newConn };
-      })
-    );
+        const reordered = await reorderPipelineModulesApi(activeUserPipelineId, ids);
+        setUserPipelines((prev) =>
+          prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(reordered.pipeline) : p)),
+        );
+      }
+      const connected = await connectPipelineAfterApi(activeUserPipelineId, fromModuleId);
+      setUserPipelines((prev) =>
+        prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(connected.pipeline) : p)),
+      );
+    } catch (error) {
+      appendSystemMessage(`모듈 연결 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      await reloadUserPipelines();
+    }
   };
 
   const resolveDomainMetaForModule = (def) => {
@@ -865,64 +809,64 @@ function App() {
   };
 
   /** 모듈 조회/관리에서 연 모듈 전용: 이 모듈만 넣은 내 파이프라인을 만들고 워크플로 화면으로 이동 */
-  const startPipelineFromModule = (moduleId) => {
+  const startPipelineFromModule = async (moduleId) => {
     const def = ALL_MODULE_CATALOG.find((m) => m.id === moduleId);
     if (!def || def.id === 'workflow') return;
     const { domainKey, domainLabel } = resolveDomainMetaForModule(def);
-    const newPl = {
-      id: newEntityId('user'),
-      domainKey,
-      domainLabel,
-      title: `${def.label}에서 시작`,
-      description: `「${def.label}」 단계부터 이어서 구성할 수 있는 내 파이프라인입니다.`,
-      moduleIds: [moduleId],
-      connectedAfter: [],
-      moduleLayout: defaultLayoutFromIds([moduleId]),
-      highlight: '',
-      createdAt: new Date().toISOString(),
-      autoNamed: true,
-    };
-    setUserPipelines((prev) => [...prev, newPl]);
-    setActiveUserPipelineId(newPl.id);
-    setActivePipelineId(newPl.id);
-    setActiveDomainKey(domainKey);
-    setSelectedModule('workflow');
-    setMainHubSection('pipeline');
-    appendSystemMessage(
-      `「${def.label}」로 시작하는 파이프라인을 만들었습니다. 캔버스에서 흐름을 이어 구성할 수 있습니다.`
-    );
+    try {
+      const created = await createPipelineApi({
+        userId: auth?.user?.id ?? null,
+        kind: 'custom',
+        domainKey,
+        domainLabel,
+        title: `${def.label}에서 시작`,
+        description: `「${def.label}」 단계부터 이어서 구성할 수 있는 내 파이프라인입니다.`,
+        moduleIds: [moduleId],
+        connectedAfter: [],
+        moduleLayout: {},
+        highlight: '',
+        autoNamed: true,
+      });
+      const newPl = mapPipelineRecordToUi(created.pipeline);
+      setUserPipelines((prev) => [...prev, newPl]);
+      await reloadUserPipelines();
+      setActiveUserPipelineId(newPl.id);
+      setActivePipelineId(newPl.id);
+      setActiveDomainKey(domainKey);
+      setSelectedModule('workflow');
+      setMainHubSection('pipeline');
+      appendSystemMessage(`「${def.label}」로 시작하는 파이프라인을 만들었습니다.`);
+    } catch (error) {
+      appendSystemMessage(`파이프라인 생성 실패: ${error?.message || '오류가 발생했습니다.'}`);
+    }
   };
 
   /** index와 index+1 모듈 사이의 연결만 끊음 (모듈은 파이프라인에 그대로 둠) */
-  const disconnectEdgeAfterInUserPipeline = (afterIndex) => {
+  const disconnectEdgeAfterInUserPipeline = async (afterIndex) => {
     if (!activeUserPipelineId) return;
-    setUserPipelines((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeUserPipelineId) return p;
-        const ids = p.moduleIds;
-        if (afterIndex < 0 || afterIndex >= ids.length - 1) return p;
-        const conn = normalizeConnectedAfter(ids, p.connectedAfter);
-        if (!conn[afterIndex]) return p;
-        const next = [...conn];
-        next[afterIndex] = false;
-        return { ...p, connectedAfter: next };
-      })
-    );
+    const current = userPipelines.find((p) => p.id === activeUserPipelineId);
+    if (!current) return;
+    const moduleId = current.moduleIds[afterIndex];
+    if (!moduleId) return;
+    try {
+      const updated = await disconnectPipelineAfterApi(activeUserPipelineId, moduleId);
+      setUserPipelines((prev) =>
+        prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)),
+      );
+    } catch (error) {
+      appendSystemMessage(`연결 해제 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      await reloadUserPipelines();
+    }
   };
 
-  const setUserPipelineModulePosition = (pipelineId, moduleId, pos) => {
-    setUserPipelines((prev) =>
-      prev.map((p) => {
-        if (p.id !== pipelineId) return p;
-        return {
-          ...p,
-          moduleLayout: {
-            ...(p.moduleLayout || {}),
-            [moduleId]: { x: pos.x, y: pos.y },
-          },
-        };
-      })
-    );
+  const setUserPipelineModulePosition = async (pipelineId, moduleId, pos) => {
+    try {
+      const updated = await updatePipelineModulePositionApi(pipelineId, moduleId, { x: pos.x, y: pos.y });
+      setUserPipelines((prev) => prev.map((p) => (p.id === pipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)));
+    } catch (error) {
+      if (isApiError(error) && error.status === 400) return;
+      appendSystemMessage('모듈 위치 저장에 실패했습니다.');
+    }
   };
 
   const saveModuleSnapshot = (moduleId, data, summary) => {

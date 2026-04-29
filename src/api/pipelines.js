@@ -53,3 +53,49 @@ export async function duplicatePipeline(pipelineId, input = {}) {
 export async function deletePipeline(pipelineId) {
   return requestJson(`/api/v1/pipelines/${pipelineId}`, { method: 'DELETE' });
 }
+
+export async function addPipelineModule(pipelineId, input) {
+  return requestJson(`/api/v1/pipelines/${pipelineId}/modules`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function reorderPipelineModules(pipelineId, moduleIds) {
+  return requestJson(`/api/v1/pipelines/${pipelineId}/modules/reorder`, {
+    method: 'PATCH',
+    body: { moduleIds },
+  });
+}
+
+export async function updatePipelineModulePosition(pipelineId, moduleId, position) {
+  return requestJson(`/api/v1/pipelines/${pipelineId}/modules/${moduleId}/position`, {
+    method: 'PATCH',
+    body: { position },
+  });
+}
+
+export async function updatePipelineConnections(pipelineId, connectedAfter) {
+  return requestJson(`/api/v1/pipelines/${pipelineId}/connections`, {
+    method: 'PATCH',
+    body: { connectedAfter },
+  });
+}
+
+export async function connectPipelineAfter(pipelineId, moduleId) {
+  return requestJson(`/api/v1/pipelines/${pipelineId}/connections/${moduleId}/connect`, {
+    method: 'POST',
+  });
+}
+
+export async function disconnectPipelineAfter(pipelineId, moduleId) {
+  return requestJson(`/api/v1/pipelines/${pipelineId}/connections/${moduleId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function removePipelineModule(pipelineId, moduleId) {
+  return requestJson(`/api/v1/pipelines/${pipelineId}/modules/${moduleId}`, {
+    method: 'DELETE',
+  });
+}
