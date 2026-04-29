@@ -16,6 +16,10 @@ import {
   updateDataSourceLinkedPipeline as updateDataSourceLinkedPipelineApi,
 } from './api/dataSources';
 import {
+  getModuleSnapshot as getModuleSnapshotApi,
+  saveModuleSnapshot as saveModuleSnapshotApi,
+} from './api/moduleSnapshots';
+import {
   addPipelineModule as addPipelineModuleApi,
   connectPipelineAfter as connectPipelineAfterApi,
   createPipeline as createPipelineApi,
@@ -197,6 +201,38 @@ function mapPipelineRecordToUi(record) {
     createdAt: record.createdAt || new Date().toISOString(),
     autoNamed: Boolean(record.autoNamed),
   };
+}
+
+function buildModuleDraft(moduleId, state) {
+  if (moduleId === 'diagnosis') return { diagnosisResult: state.diagnosisResult };
+  if (moduleId === 'domain') return state.domainForm;
+  if (moduleId === 'search') return { selectedDatasets: state.selectedDatasets };
+  if (moduleId === 'matching') return state.matchingReview;
+  if (moduleId === 'synthesis') return state.synthesisOptions;
+  if (moduleId === 'results') return { focusMetric: state.resultFocus };
+  if (DOMAIN_MODULE_IDS.includes(moduleId)) return { note: state.domainModuleNotes[moduleId] ?? '' };
+  return {};
+}
+
+function buildModuleSummary(moduleId, state) {
+  if (moduleId === 'diagnosis') {
+    const diagnosisLabelMap = {
+      imbalance_high: '불균형 가능성 높음',
+      suspected: '의심',
+      healthy: '현재 양호',
+    };
+    return `결과: ${diagnosisLabelMap[state.diagnosisResult]}`;
+  }
+  if (moduleId === 'domain') return `${state.domainForm.industry || '미정'} / ${state.domainForm.ml_task || '미정'}`;
+  if (moduleId === 'search') return `선택 데이터셋 ${state.selectedDatasets.length}개`;
+  if (moduleId === 'matching') return `정합성: ${state.matchingReview.finalFit}`;
+  if (moduleId === 'synthesis') return `모드: ${state.synthesisOptions.mode}`;
+  if (moduleId === 'results') return `포커스 지표: ${state.resultFocus}`;
+  if (DOMAIN_MODULE_IDS.includes(moduleId)) {
+    const note = state.domainModuleNotes[moduleId] ?? '';
+    return note.trim().length > 0 ? `${note.trim().slice(0, 40)}${note.trim().length > 40 ? '…' : ''}` : '메모 없음';
+  }
+  return '';
 }
 
 function App() {
@@ -869,8 +905,39 @@ function App() {
     }
   };
 
-  const saveModuleSnapshot = (moduleId, data, summary) => {
-    const now = new Date().toISOString();
+  const applySnapshotToDraft = (moduleId, data) => {
+    if (!data || typeof data !== 'object') return;
+    if (moduleId === 'diagnosis' && typeof data.diagnosisResult === 'string') {
+      setDiagnosisResult(data.diagnosisResult);
+      return;
+    }
+    if (moduleId === 'domain') {
+      setDomainForm((prev) => ({ ...prev, ...data }));
+      return;
+    }
+    if (moduleId === 'search' && Array.isArray(data.selectedDatasets)) {
+      setSelectedDatasets(data.selectedDatasets);
+      return;
+    }
+    if (moduleId === 'matching') {
+      setMatchingReview((prev) => ({ ...prev, ...data }));
+      return;
+    }
+    if (moduleId === 'synthesis') {
+      setSynthesisOptions((prev) => ({ ...prev, ...data }));
+      return;
+    }
+    if (moduleId === 'results' && typeof data.focusMetric === 'string') {
+      setResultFocus(data.focusMetric);
+      return;
+    }
+    if (DOMAIN_MODULE_IDS.includes(moduleId) && typeof data.note === 'string') {
+      setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: data.note }));
+    }
+  };
+
+  const saveModuleSnapshotLocal = (moduleId, data, summary, savedAt) => {
+    const now = savedAt || new Date().toISOString();
     setModuleMemory((prev) => ({
       ...prev,
       [moduleId]: {
@@ -882,6 +949,35 @@ function App() {
     const label = ALL_MODULE_CATALOG.find((m) => m.id === moduleId)?.label ?? moduleId;
     appendSystemMessage(`${label} 저장됨 (${formatSavedTime(now)})`);
   };
+
+  useEffect(() => {
+    if (!activeUserPipelineId || selectedModule === 'workflow') return;
+    let disposed = false;
+    const loadSnapshot = async () => {
+      try {
+        const response = await getModuleSnapshotApi(activeUserPipelineId, selectedModule, {
+          userId: auth?.user?.id,
+        });
+        if (disposed || !response?.moduleSnapshot) return;
+        const snap = response.moduleSnapshot;
+        applySnapshotToDraft(selectedModule, snap.data || {});
+        setModuleMemory((prev) => ({
+          ...prev,
+          [selectedModule]: {
+            savedAt: snap.savedAt || null,
+            summary: snap.summary || '',
+            data: snap.data || {},
+          },
+        }));
+      } catch (error) {
+        if (isApiError(error) && error.status === 404) return;
+      }
+    };
+    loadSnapshot();
+    return () => {
+      disposed = true;
+    };
+  }, [activeUserPipelineId, selectedModule, auth?.user?.id]);
 
   const handleDomainChange = (key, value) => {
     setDomainForm((prev) => ({ ...prev, [key]: value }));
@@ -950,82 +1046,36 @@ function App() {
   const savedMatching = moduleMemory.matching.savedAt ? moduleMemory.matching.data : null;
   const savedSynthesis = moduleMemory.synthesis.savedAt ? moduleMemory.synthesis.data : null;
 
-  const saveCurrentModule = (moduleId) => {
-    if (moduleId === 'diagnosis') {
-      const diagnosisLabelMap = {
-        imbalance_high: '불균형 가능성 높음',
-        suspected: '의심',
-        healthy: '현재 양호',
-      };
-      saveModuleSnapshot(
-        'diagnosis',
-        { diagnosisResult },
-        `결과: ${diagnosisLabelMap[diagnosisResult]}`
-      );
+  const saveCurrentModule = async (moduleId) => {
+    if (!activeUserPipelineId) {
+      appendSystemMessage('파이프라인를 먼저 선택한 뒤 저장할 수 있습니다.');
+      return;
     }
-
-    if (moduleId === 'domain') {
-      saveModuleSnapshot(
-        'domain',
-        { ...domainForm },
-        `${domainForm.industry || '미정'} / ${domainForm.ml_task || '미정'}`
-      );
-    }
-
-    if (moduleId === 'search') {
-      saveModuleSnapshot(
-        'search',
-        { selectedDatasets: [...selectedDatasets] },
-        `선택 데이터셋 ${selectedDatasets.length}개`
-      );
-    }
-
-    if (moduleId === 'matching') {
-      saveModuleSnapshot(
-        'matching',
-        { ...matchingReview },
-        `정합성: ${matchingReview.finalFit}`
-      );
-    }
-
-    if (moduleId === 'synthesis') {
-      saveModuleSnapshot(
-        'synthesis',
-        { ...synthesisOptions },
-        `모드: ${synthesisOptions.mode}`
-      );
-    }
-
-    if (moduleId === 'results') {
-      saveModuleSnapshot(
-        'results',
-        { focusMetric: resultFocus },
-        `포커스 지표: ${resultFocus}`
-      );
-    }
-
-    if (DOMAIN_MODULE_IDS.includes(moduleId)) {
-      const note = domainModuleNotes[moduleId] ?? '';
-      const summary =
-        note.trim().length > 0
-          ? `${note.trim().slice(0, 40)}${note.trim().length > 40 ? '…' : ''}`
-          : '메모 없음';
-      saveModuleSnapshot(moduleId, { note }, summary);
+    const state = {
+      diagnosisResult,
+      domainForm,
+      selectedDatasets,
+      matchingReview,
+      synthesisOptions,
+      resultFocus,
+      domainModuleNotes,
+    };
+    const data = buildModuleDraft(moduleId, state);
+    const summary = buildModuleSummary(moduleId, state);
+    try {
+      const response = await saveModuleSnapshotApi(activeUserPipelineId, moduleId, {
+        userId: auth?.user?.id ?? null,
+        summary,
+        data,
+      });
+      const saved = response?.moduleSnapshot;
+      saveModuleSnapshotLocal(moduleId, saved?.data ?? data, saved?.summary ?? summary, saved?.savedAt);
+    } catch (error) {
+      appendSystemMessage('저장에 실패했습니다. 편집 상태는 유지되며 다시 시도할 수 있습니다.');
     }
   };
 
   const moduleStatus = useMemo(() => {
-    const getDraftPayload = (moduleId) => {
-      if (moduleId === 'diagnosis') return { diagnosisResult };
-      if (moduleId === 'domain') return domainForm;
-      if (moduleId === 'search') return { selectedDatasets };
-      if (moduleId === 'matching') return matchingReview;
-      if (moduleId === 'synthesis') return synthesisOptions;
-      if (moduleId === 'results') return { focusMetric: resultFocus };
-      if (DOMAIN_MODULE_IDS.includes(moduleId)) return { note: domainModuleNotes[moduleId] ?? '' };
-      return {};
-    };
-
     return ALL_MODULE_CATALOG.reduce((acc, module) => {
       if (module.id === 'workflow') {
         acc[module.id] = {
@@ -1048,8 +1098,17 @@ function App() {
         return acc;
       }
 
-      const isDirty =
-        JSON.stringify(memory.data) !== JSON.stringify(getDraftPayload(module.id));
+      const isDirty = JSON.stringify(memory.data) !== JSON.stringify(
+        buildModuleDraft(module.id, {
+          diagnosisResult,
+          domainForm,
+          selectedDatasets,
+          matchingReview,
+          synthesisOptions,
+          resultFocus,
+          domainModuleNotes,
+        }),
+      );
 
       acc[module.id] = {
         state: isDirty ? 'edited' : 'saved',
