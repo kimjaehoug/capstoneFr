@@ -1,4 +1,5 @@
 const DEFAULT_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 10000);
+const AUTH_STORAGE_KEY = 'stage-one-auth';
 
 let unauthorizedHandler = null;
 
@@ -27,6 +28,20 @@ export function isApiError(error) {
   return error instanceof ApiError;
 }
 
+function readStoredAccessToken() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.accessToken === 'string' && parsed.accessToken.trim()
+      ? parsed.accessToken.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function requestJson(path, options = {}) {
   const {
     method = 'GET',
@@ -45,8 +60,9 @@ export async function requestJson(path, options = {}) {
   if (body !== undefined && !finalHeaders['content-type']) {
     finalHeaders['content-type'] = 'application/json';
   }
-  if (accessToken && !finalHeaders.authorization) {
-    finalHeaders.authorization = `Bearer ${accessToken}`;
+  const tokenForRequest = accessToken || readStoredAccessToken();
+  if (tokenForRequest && !finalHeaders.authorization) {
+    finalHeaders.authorization = `Bearer ${tokenForRequest}`;
   }
 
   let response;

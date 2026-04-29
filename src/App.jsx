@@ -6,7 +6,7 @@ import LoginPage from './components/LoginPage';
 import { PIPELINES } from './data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
-import { clearAuthState, loadAuthState, logout, saveAuthState } from './utils/auth';
+import { clearAuthState, getMyProfile, loadAuthState, logout, saveAuthState } from './utils/auth';
 import { isApiError, setUnauthorizedHandler } from './api/client';
 import {
   createDataSource as createDataSourceApi,
@@ -327,6 +327,34 @@ function App() {
   ]);
   const [auth, setAuth] = useState(() => loadAuthState());
   const currentUserId = getAuthUserId(auth);
+  const isAuthenticated = Boolean(auth?.accessToken);
+
+  useEffect(() => {
+    if (!auth?.accessToken || currentUserId) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const me = await getMyProfile(auth.accessToken);
+        const normalizedUser = me?.user
+          ? {
+              ...me.user,
+              id: me.user.id ?? me.user.userId ?? null,
+            }
+          : null;
+        if (!normalizedUser?.id || cancelled) return;
+        const next = { ...auth, user: normalizedUser };
+        saveAuthState(next);
+        setAuth(next);
+      } catch {
+        // 인증 만료/오류는 공통 unauthorized handler에서 처리한다.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auth, currentUserId]);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -1375,7 +1403,7 @@ function App() {
       >
         <Sidebar
           auth={auth} 
-          isAuthenticated={Boolean(currentUserId)}
+          isAuthenticated={isAuthenticated}
           moveToPath={moveToPath} 
           handleLogout={handleLogout} 
           handleGoHome={handleGoHome}
@@ -1459,7 +1487,7 @@ function App() {
             onCreatePipelineAndLinkData={createPipelineAndLinkData}
             onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
             onGoLogin={() => moveToPath('/login')}
-            isAuthenticated={Boolean(currentUserId)}
+            isAuthenticated={isAuthenticated}
             userPipelinesAuthRequired={userPipelinesAuthRequired}
             userPipelinesAuthMessage={userPipelinesAuthMessage}
             onUpdateUserPipeline={updateUserPipeline}
