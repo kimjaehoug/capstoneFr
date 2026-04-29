@@ -8,7 +8,14 @@ import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
 import { defaultLayoutFromIds } from './utils/pipelineLayout';
 import { clearAuthState, loadAuthState, logout, saveAuthState } from './utils/auth';
-import { setUnauthorizedHandler } from './api/client';
+import { isApiError, setUnauthorizedHandler } from './api/client';
+import {
+  createDataSource as createDataSourceApi,
+  deleteDataSource as deleteDataSourceApi,
+  listDataSources as listDataSourcesApi,
+  updateDataSource as updateDataSourceApi,
+  updateDataSourceLinkedPipeline as updateDataSourceLinkedPipelineApi,
+} from './api/dataSources';
 import {
   connectAfterReorder,
   defaultConnectedAfter,
@@ -133,6 +140,34 @@ function formatSavedTime(isoDate) {
   });
 }
 
+function formatDataSourceUpdated(isoDate) {
+  if (!isoDate) return '-';
+  return new Date(isoDate).toLocaleString('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function mapDataSourceRecordToRow(record) {
+  return {
+    id: record.id,
+    name: record.name,
+    source: record.source || '미지정',
+    updated: formatDataSourceUpdated(record.updatedAt),
+    rows: record.rowsLabel || '-',
+    linkedPipelineId: record.linkedPipelineId ?? null,
+    ...(record.domainIndustryContext ? { domainIndustryContext: record.domainIndustryContext } : {}),
+    ...(record.domainSubjectScope ? { domainSubjectScope: record.domainSubjectScope } : {}),
+    ...(record.domainRegulationScope ? { domainRegulationScope: record.domainRegulationScope } : {}),
+    ...(record.domainStakeholderNotes ? { domainStakeholderNotes: record.domainStakeholderNotes } : {}),
+    ...(record.dataModality ? { dataModality: record.dataModality } : {}),
+    ...(record.rowUnit ? { rowUnit: record.rowUnit } : {}),
+    ...(record.sensitivityNote ? { sensitivityNote: record.sensitivityNote } : {}),
+  };
+}
+
 function createInitialModuleMemory() {
   return SAVEABLE_MODULES.reduce((acc, moduleId) => {
     acc[moduleId] = { savedAt: null, summary: '', data: null };
@@ -239,6 +274,20 @@ function App() {
     localStorage.setItem(DATA_SOURCES_KEY, JSON.stringify(dataSources));
   }, [dataSources]);
 
+  const reloadDataSources = async () => {
+    try {
+      const payload = await listDataSourcesApi({ userId: auth?.user?.id });
+      setDataSources((payload?.dataSources ?? []).map(mapDataSourceRecordToRow));
+    } catch (error) {
+      if (isApiError(error) && error.status === 401) return;
+      appendSystemMessage('데이터소스 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
+
+  useEffect(() => {
+    reloadDataSources();
+  }, [auth?.user?.id]);
+
   useEffect(() => {
     if (!activeUserPipelineId) return;
     const pl = userPipelines.find((p) => p.id === activeUserPipelineId);
@@ -265,13 +314,12 @@ function App() {
     setActiveDomainKey(resolved?.domainKey ?? null);
   };
 
-  const addDataSource = (payload) => {
+  const addDataSource = async (payload) => {
     const {
       name,
       source,
       rowsLabel,
       linkedPipelineId,
-      domainDescription,
       domainIndustryContext,
       domainSubjectScope,
       domainRegulationScope,
@@ -280,33 +328,81 @@ function App() {
       rowUnit,
       sensitivityNote,
     } = payload;
-    setDataSources((prev) => [
-      ...prev,
-      {
-        id: newEntityId('ds'),
+    try {
+      const created = await createDataSourceApi({
+        userId: auth?.user?.id ?? null,
         name,
         source,
-        updated: '방금 추가',
-        rows: rowsLabel,
+        rowsLabel,
         linkedPipelineId: linkedPipelineId || null,
-        ...(domainDescription?.trim() ? { domainDescription: domainDescription.trim() } : {}),
-        ...(domainIndustryContext?.trim() ? { domainIndustryContext: domainIndustryContext.trim() } : {}),
-        ...(domainSubjectScope?.trim() ? { domainSubjectScope: domainSubjectScope.trim() } : {}),
-        ...(domainRegulationScope?.trim() ? { domainRegulationScope: domainRegulationScope.trim() } : {}),
-        ...(domainStakeholderNotes?.trim() ? { domainStakeholderNotes: domainStakeholderNotes.trim() } : {}),
-        ...(dataModality?.trim() ? { dataModality: dataModality.trim() } : {}),
-        ...(rowUnit?.trim() ? { rowUnit: rowUnit.trim() } : {}),
-        ...(sensitivityNote?.trim() ? { sensitivityNote: sensitivityNote.trim() } : {}),
-      },
-    ]);
+        domainIndustryContext: domainIndustryContext || null,
+        domainSubjectScope: domainSubjectScope || null,
+        domainRegulationScope: domainRegulationScope || null,
+        domainStakeholderNotes: domainStakeholderNotes || null,
+        dataModality: dataModality || null,
+        rowUnit: rowUnit || null,
+        sensitivityNote: sensitivityNote || null,
+      });
+      setDataSources((prev) => [...prev, mapDataSourceRecordToRow(created.dataSource)]);
+      appendSystemMessage(`"${name}" 데이터셋이 등록되었습니다.`);
+      return true;
+    } catch (error) {
+      if (isApiError(error)) {
+        if (error.status === 400 || error.status === 409) {
+          appendSystemMessage(`데이터소스 등록 실패: ${error.message}`);
+          return false;
+        }
+        if (error.isTimeout) {
+          appendSystemMessage('요청 시간이 초과되었습니다. 다시 시도해주세요.');
+          return false;
+        }
+      }
+      appendSystemMessage('데이터소스 등록 중 오류가 발생했습니다. 다시 시도해주세요.');
+      return false;
+    }
   };
 
-  const updateDataSource = (updatedData) => {
-  setDataSources((prev) => 
-    prev.map((item) => (item.id === updatedData.id ? { ...item, ...updatedData, updated: '방금 수정' } : item))
-  );
-  appendSystemMessage(`"${updatedData.name}" 데이터 정보가 수정되었습니다.`);
-};
+  const updateDataSource = async (updatedData) => {
+    const patch = {
+      userId: auth?.user?.id ?? null,
+      name: updatedData.name,
+      source: updatedData.source,
+      rowsLabel: updatedData.rowsLabel,
+      linkedPipelineId: updatedData.linkedPipelineId ?? null,
+      domainIndustryContext: updatedData.domainIndustryContext ?? null,
+      domainSubjectScope: updatedData.domainSubjectScope ?? null,
+      domainRegulationScope: updatedData.domainRegulationScope ?? null,
+      domainStakeholderNotes: updatedData.domainStakeholderNotes ?? null,
+      dataModality: updatedData.dataModality ?? null,
+      rowUnit: updatedData.rowUnit ?? null,
+      sensitivityNote: updatedData.sensitivityNote ?? null,
+    };
+    try {
+      const linkedPipelineChanged = Object.prototype.hasOwnProperty.call(updatedData, 'linkedPipelineId');
+      const updated = linkedPipelineChanged
+        ? await updateDataSourceLinkedPipelineApi(updatedData.id, updatedData.linkedPipelineId ?? null)
+        : await updateDataSourceApi(updatedData.id, patch);
+      setDataSources((prev) =>
+        prev.map((item) => (item.id === updatedData.id ? mapDataSourceRecordToRow(updated.dataSource) : item)),
+      );
+      appendSystemMessage(`"${updatedData.name}" 데이터 정보가 수정되었습니다.`);
+      return true;
+    } catch (error) {
+      if (isApiError(error)) {
+        if (error.status === 404) {
+          appendSystemMessage('대상 데이터소스를 찾을 수 없습니다. 목록을 새로고침합니다.');
+          await reloadDataSources();
+          return false;
+        }
+        if (error.status === 400 || error.status === 409) {
+          appendSystemMessage(`데이터소스 수정 실패: ${error.message}`);
+          return false;
+        }
+      }
+      appendSystemMessage('데이터소스 수정 중 오류가 발생했습니다. 다시 시도해주세요.');
+      return false;
+    }
+  };
 
   const deleteDataSource = (id) => {
     const target = dataSources.find((d) => d.id === id);
@@ -315,15 +411,26 @@ function App() {
     setIsDataDeleteModalOpen(true);
   };
 
-  const confirmDataDelete = () => {
+  const confirmDataDelete = async () => {
     if (!dataSourceToDelete) return;
 
-    const {id, name} = dataSourceToDelete;
-    setDataSources((prev) => prev.filter((d) => d.id !== id));
-    appendSystemMessage(`"${name}" 데이터셋이 삭제되었습니다.`);
-
-    setIsDataDeleteModalOpen(false);
-    setDataSourceToDelete(null);
+    const { id, name } = dataSourceToDelete;
+    try {
+      await deleteDataSourceApi(id);
+      setDataSources((prev) => prev.filter((d) => d.id !== id));
+      appendSystemMessage(`"${name}" 데이터셋이 삭제되었습니다.`);
+      setIsDataDeleteModalOpen(false);
+      setDataSourceToDelete(null);
+    } catch (error) {
+      if (isApiError(error) && error.status === 404) {
+        appendSystemMessage('이미 삭제된 데이터소스입니다. 목록을 동기화합니다.');
+        await reloadDataSources();
+        setIsDataDeleteModalOpen(false);
+        setDataSourceToDelete(null);
+        return;
+      }
+      appendSystemMessage('삭제에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   const connectDataToPipeline = (pipelineId) => {

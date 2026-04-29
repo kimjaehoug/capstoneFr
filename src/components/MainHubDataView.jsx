@@ -110,6 +110,7 @@ function MainHubDataView({
     setName(record.name);
     setSource(record.source);
     setRowsLabel(record.rows);
+    setLinkedPipelineId(record.linkedPipelineId || firstPipelineId || '');
     setDomainIndustryContext(record.domainIndustryContext || '');
     setDomainSubjectScope(record.domainSubjectScope || '');
     setDomainRegulationScope(record.domainRegulationScope || '');
@@ -141,15 +142,17 @@ function MainHubDataView({
     return out;
   };
 
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
     const n = name.trim();
     if (!n) return;
 
     const extra = domainPayload();
 
-    if (editingId) {
-      onUpdateDataSource({
+    try {
+      let success = false;
+      if (editingId) {
+        const result = await onUpdateDataSource({
         id: editingId,
         name: n,
         source: source.trim() || '미지정',
@@ -157,32 +160,38 @@ function MainHubDataView({
         rowsLabel: rowsLabel.trim() || '-',
         ...extra,
       });
-    } else {
-    if (linkMode === 'new') {
-      const tid = baseTemplateId || firstTemplateId;
-      if (!tid) return;
-      onCreatePipelineAndLinkData({
-        datasetName: n,
-        source: source.trim() || '미지정',
-        rowsLabel: rowsLabel.trim() || '-',
-        templateId: tid,
-        pipelineTitle,
-        pipelineDescription,
-        ...extra,
-      });
-    } else {
-      const pid = (linkedPipelineId || firstPipelineId || '').trim() || null;
-      if (!pid && pipelineOptions.length > 0) return;
-      onAddDataSource({
-        name: n,
-        source: source.trim() || '미지정',
-        rowsLabel: rowsLabel.trim() || '-',
-        linkedPipelineId: pid,
-        ...extra,
-      });
+        success = result !== false;
+      } else if (linkMode === 'new') {
+        const tid = baseTemplateId || firstTemplateId;
+        if (!tid) return;
+        const result = await onCreatePipelineAndLinkData({
+          datasetName: n,
+          source: source.trim() || '미지정',
+          rowsLabel: rowsLabel.trim() || '-',
+          templateId: tid,
+          pipelineTitle,
+          pipelineDescription,
+          ...extra,
+        });
+        success = result !== false;
+      } else {
+        const pid = (linkedPipelineId || firstPipelineId || '').trim() || null;
+        if (!pid && pipelineOptions.length > 0) return;
+        const result = await onAddDataSource({
+          name: n,
+          source: source.trim() || '미지정',
+          rowsLabel: rowsLabel.trim() || '-',
+          linkedPipelineId: pid,
+          ...extra,
+        });
+        success = result !== false;
+      }
+      if (success) {
+        closeForm();
+      }
+    } catch {
+      // 에러 메시지 노출은 상위(App)에서 담당하며, 실패 시 폼은 닫지 않는다.
     }
-  }
-    closeForm();
   };
 
   const formBlock = (
