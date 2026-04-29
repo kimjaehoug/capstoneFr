@@ -8,6 +8,7 @@ import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
 import { defaultLayoutFromIds } from './utils/pipelineLayout';
 import { clearAuthState, loadAuthState, logout, saveAuthState } from './utils/auth';
+import { setUnauthorizedHandler } from './api/client';
 import {
   connectAfterReorder,
   defaultConnectedAfter,
@@ -196,6 +197,19 @@ function App() {
     },
   ]);
   const [auth, setAuth] = useState(() => loadAuthState());
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearAuthState();
+      setAuth(null);
+      if (typeof window !== 'undefined' && (window.location.pathname || '/') !== '/login') {
+        window.history.pushState({}, '', '/login');
+        setCurrentPath('/login');
+      }
+    });
+
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
