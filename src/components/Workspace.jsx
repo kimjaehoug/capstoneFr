@@ -64,6 +64,7 @@ function Workspace({
   onDeleteDataSource,
   onConnectDataToPipeline,
   onCreatePipelineAndLinkData,
+  onRequireLoginForDataFormDraft,
   onUpdateUserPipeline,
   onMoveModuleInUserPipeline,
   onRemoveModuleFromUserPipeline,
@@ -72,6 +73,7 @@ function Workspace({
   onDisconnectEdgeAfterInUserPipeline,
   activeUserPipelineId,
   onStartPipelineFromModule,
+  isAuthenticated,
 }) {
   const selectedModuleInfo = modules.find((item) => item.id === selectedModule);
   const allHubPipelines = [...pipelines, ...userPipelines];
@@ -138,6 +140,8 @@ function Workspace({
             onDeleteDataSource={onDeleteDataSource}
             onConnectToPipeline={onConnectDataToPipeline}
             onCreatePipelineAndLinkData={onCreatePipelineAndLinkData}
+            onRequireLoginForDataFormDraft={onRequireLoginForDataFormDraft}
+            isAuthenticated={isAuthenticated}
           />
         );
       } else if (mainHubSection === 'modules') {
@@ -308,10 +312,11 @@ function Workspace({
                     이 모듈에서 파이프라인 시작해보기
                   </button>
                 ) : (
-                  <button type="button" onClick={() => onSaveCurrentModule(selectedModule)}>
+                  <button type="button" onClick={() => onSaveCurrentModule(selectedModule)} disabled={!isAuthenticated}>
                     현재 모듈 저장
                   </button>
                 )}
+                {!isAuthenticated ? <span className="saved-time">로그인 후 저장 가능합니다.</span> : null}
               </div>
             )}
           </div>

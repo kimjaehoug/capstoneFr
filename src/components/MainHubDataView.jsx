@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { suggestPipelineFromDataset } from '../utils/pipelineSuggest';
 
 const MODALITY_OPTIONS = ['테이블', '시계열', '텍스트·문서', '이미지', '로그·이벤트', '혼합', '기타'];
@@ -9,6 +9,8 @@ const DOMAIN_SEGMENT_LABELS = [
   ['domainRegulationScope', '규제·민감도·제약'],
   ['domainStakeholderNotes', '이해관계자·기타'],
 ];
+const AUTH_REQUIRED_DATA_FORM_CACHE_KEY = 'stage-one-auth-required-data-form';
+const AUTH_REQUIRED_DRAFT_TTL_MS = 30 * 60 * 1000;
 
 /** 목록/툴팁용 (구형 domainDescription·domainNotes·domainLabel 호환) */
 function dataSourceDomainText(r) {
@@ -35,6 +37,8 @@ function MainHubDataView({
   onDeleteDataSource,
   onConnectToPipeline,
   onCreatePipelineAndLinkData,
+  onRequireLoginForDataFormDraft,
+  isAuthenticated,
 }) {
   /** 목록 | 추가 폼(기본·도메인·상세 한 화면) */
   const [dataFormView, setDataFormView] = useState('list');
@@ -148,6 +152,23 @@ function MainHubDataView({
     if (!n) return;
 
     const extra = domainPayload();
+    const formDraft = {
+      editingId,
+      linkMode,
+      name: n,
+      source: source.trim() || '미지정',
+      rowsLabel: rowsLabel.trim() || '-',
+      linkedPipelineId: linkedPipelineId || null,
+      baseTemplateId: baseTemplateId || null,
+      pipelineTitle,
+      pipelineDescription,
+      ...extra,
+    };
+
+    if (!isAuthenticated) {
+      onRequireLoginForDataFormDraft?.(formDraft);
+      return;
+    }
 
     try {
       let success = false;
@@ -193,6 +214,42 @@ function MainHubDataView({
       // 에러 메시지 노출은 상위(App)에서 담당하며, 실패 시 폼은 닫지 않는다.
     }
   };
+
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') return;
+    const raw = window.sessionStorage.getItem(AUTH_REQUIRED_DATA_FORM_CACHE_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      const cachedAt = Date.parse(parsed?.cachedAt || '');
+      if (!Number.isFinite(cachedAt) || Date.now() - cachedAt > AUTH_REQUIRED_DRAFT_TTL_MS) {
+        return;
+      }
+      const draft = parsed?.draft;
+      if (!draft || typeof draft !== 'object') return;
+      setEditingId(draft.editingId || null);
+      setLinkMode(draft.linkMode === 'new' ? 'new' : 'existing');
+      setName(draft.name || '');
+      setSource(draft.source || '');
+      setRowsLabel(draft.rowsLabel || '');
+      setLinkedPipelineId(draft.linkedPipelineId || firstPipelineId || '');
+      setBaseTemplateId(draft.baseTemplateId || firstTemplateId || '');
+      setPipelineTitle(draft.pipelineTitle || '');
+      setPipelineDescription(draft.pipelineDescription || '');
+      setDomainIndustryContext(draft.domainIndustryContext || '');
+      setDomainSubjectScope(draft.domainSubjectScope || '');
+      setDomainRegulationScope(draft.domainRegulationScope || '');
+      setDomainStakeholderNotes(draft.domainStakeholderNotes || '');
+      setDataModality(draft.dataModality || '');
+      setRowUnit(draft.rowUnit || '');
+      setSensitivityNote(draft.sensitivityNote || '');
+      setDataFormView('form');
+    } catch {
+      // ignore parse error
+    } finally {
+      window.sessionStorage.removeItem(AUTH_REQUIRED_DATA_FORM_CACHE_KEY);
+    }
+  }, [isAuthenticated, firstPipelineId, firstTemplateId]);
 
   const formBlock = (
     <form className="main-hub-add-form main-hub-add-form--detail" onSubmit={handleAddSubmit}>

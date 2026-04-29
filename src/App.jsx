@@ -108,6 +108,9 @@ const SAVEABLE_MODULES = [
 
 const USER_PIPELINES_KEY = 'ai-workbench-user-pipelines';
 const AUTH_EXPIRED_NOTICE_KEY = 'stage-one-auth-expired-notice';
+const AUTH_REQUIRED_DRAFT_CACHE_KEY = 'stage-one-auth-required-draft';
+const AUTH_REQUIRED_DATA_FORM_CACHE_KEY = 'stage-one-auth-required-data-form';
+const AUTH_REQUIRED_DRAFT_TTL_MS = 30 * 60 * 1000;
 
 function migrateUserPipeline(p) {
   const labelMap = { 의료: 'medical', 금융: 'finance', 제조: 'manufacturing' };
@@ -339,6 +342,78 @@ function App() {
     setCurrentPath(path);
   };
 
+  const buildDraftCache = () => ({
+    selectedModule,
+    diagnosisResult,
+    domainForm,
+    selectedDatasets,
+    matchingReview,
+    synthesisOptions,
+    resultFocus,
+    domainModuleNotes,
+  });
+
+  const restoreDraftCache = (payload) => {
+    if (!payload || typeof payload !== 'object') return;
+    if (typeof payload.selectedModule === 'string') setSelectedModule(payload.selectedModule);
+    if (typeof payload.diagnosisResult === 'string') setDiagnosisResult(payload.diagnosisResult);
+    if (payload.domainForm && typeof payload.domainForm === 'object') setDomainForm(payload.domainForm);
+    if (Array.isArray(payload.selectedDatasets)) setSelectedDatasets(payload.selectedDatasets);
+    if (payload.matchingReview && typeof payload.matchingReview === 'object') setMatchingReview(payload.matchingReview);
+    if (payload.synthesisOptions && typeof payload.synthesisOptions === 'object') setSynthesisOptions(payload.synthesisOptions);
+    if (typeof payload.resultFocus === 'string') setResultFocus(payload.resultFocus);
+    if (payload.domainModuleNotes && typeof payload.domainModuleNotes === 'object') {
+      setDomainModuleNotes((prev) => ({ ...prev, ...payload.domainModuleNotes }));
+    }
+  };
+
+  const readValidDraftCache = (raw) => {
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      const cachedAt = Date.parse(parsed?.cachedAt || '');
+      if (!Number.isFinite(cachedAt) || Date.now() - cachedAt > AUTH_REQUIRED_DRAFT_TTL_MS) {
+        return null;
+      }
+      return parsed?.draft ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const requireAuthForCrud = (actionLabel = '이 작업', { cacheDraft = false } = {}) => {
+    if (auth?.user?.id) return true;
+    appendSystemMessage(`${actionLabel}은 로그인 후 사용할 수 있습니다.`);
+    if (cacheDraft && typeof window !== 'undefined') {
+      window.sessionStorage.setItem(
+        AUTH_REQUIRED_DRAFT_CACHE_KEY,
+        JSON.stringify({ cachedAt: new Date().toISOString(), draft: buildDraftCache() }),
+      );
+      appendSystemMessage('현재 작성 내용은 임시 보관되었습니다.');
+    }
+    const shouldMove = typeof window === 'undefined'
+      ? true
+      : window.confirm('로그인이 필요합니다. 로그인 화면으로 이동할까요?');
+    if (shouldMove) moveToPath('/login');
+    return false;
+  };
+
+  const requestLoginForDataFormDraft = (draftPayload) => {
+    if (auth?.user?.id) return true;
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(
+        AUTH_REQUIRED_DATA_FORM_CACHE_KEY,
+        JSON.stringify({ cachedAt: new Date().toISOString(), draft: draftPayload }),
+      );
+    }
+    appendSystemMessage('데이터 추가/수정 내용을 임시 보관했습니다.');
+    const shouldMove = typeof window === 'undefined'
+      ? true
+      : window.confirm('로그인이 필요합니다. 로그인 화면으로 이동할까요?');
+    if (shouldMove) moveToPath('/login');
+    return false;
+  };
+
   useEffect(() => {
     localStorage.setItem(USER_PIPELINES_KEY, JSON.stringify(userPipelines));
   }, [userPipelines]);
@@ -416,6 +491,7 @@ function App() {
   };
 
   const addDataSource = async (payload) => {
+    if (!requireAuthForCrud('데이터 등록')) return false;
     const {
       name,
       source,
@@ -464,6 +540,7 @@ function App() {
   };
 
   const updateDataSource = async (updatedData) => {
+    if (!requireAuthForCrud('데이터 수정')) return false;
     const patch = {
       userId: auth?.user?.id ?? null,
       name: updatedData.name,
@@ -513,6 +590,7 @@ function App() {
   };
 
   const confirmDataDelete = async () => {
+    if (!requireAuthForCrud('데이터 삭제')) return;
     if (!dataSourceToDelete) return;
 
     const { id, name } = dataSourceToDelete;
@@ -592,6 +670,7 @@ function App() {
   };
 
   const copyTemplateToUser = async (templateId) => {
+    if (!requireAuthForCrud('템플릿 복사')) return;
     const template = templatePipelines.find((p) => p.id === templateId);
     if (!template) return;
     try {
@@ -612,6 +691,7 @@ function App() {
   };
 
   const updateUserPipeline = async (id, { title, description, clearAutoNamed }) => {
+    if (!requireAuthForCrud('파이프라인 수정')) return false;
     const current = userPipelines.find((p) => p.id === id);
     if (!current) return false;
     const patch = {
@@ -652,6 +732,7 @@ function App() {
     rowUnit,
     sensitivityNote,
   }) => {
+    if (!requireAuthForCrud('파이프라인 생성')) return false;
     const template = templatePipelines.find((p) => p.id === templateId);
     if (!template) return;
     const hasCustomTitle = Boolean(pipelineTitle?.trim());
@@ -700,6 +781,7 @@ function App() {
   };
 
   const duplicateUserPipeline = async (id) => {
+    if (!requireAuthForCrud('파이프라인 복제')) return;
     const source = userPipelines.find((p) => p.id === id);
     if (!source) return;
     try {
@@ -728,6 +810,7 @@ function App() {
 };
 
   const confirmDelete = async () => {
+    if (!requireAuthForCrud('파이프라인 삭제')) return;
     if (!pipelineToDelete) return;
     try {
       const id = pipelineToDelete.id;
@@ -756,6 +839,7 @@ function App() {
   };
 
   const addModuleToUserPipeline = async (moduleId) => {
+    if (!requireAuthForCrud('모듈 추가')) return;
     if (!activeUserPipelineId) return;
     const def = ALL_MODULE_CATALOG.find((m) => m.id === moduleId);
     const pl = userPipelines.find((p) => p.id === activeUserPipelineId);
@@ -776,6 +860,7 @@ function App() {
   };
 
   const removeModuleFromUserPipeline = async (moduleId) => {
+    if (!requireAuthForCrud('모듈 삭제')) return;
     if (!activeUserPipelineId) return;
     try {
       const updated = await removePipelineModuleApi(activeUserPipelineId, moduleId);
@@ -793,6 +878,7 @@ function App() {
   };
 
   const moveModuleInUserPipeline = async (fromIndex, toIndex) => {
+    if (!requireAuthForCrud('모듈 순서 변경')) return;
     if (!activeUserPipelineId) return;
     const current = userPipelines.find((p) => p.id === activeUserPipelineId);
     if (!current) return;
@@ -814,6 +900,7 @@ function App() {
 
   /** 실행 순서에서 toModuleId를 fromModuleId 바로 뒤로 옮김 (출력→입력 드래그 연결) */
   const connectModuleAfterInUserPipeline = async (fromModuleId, toModuleId) => {
+    if (!requireAuthForCrud('모듈 연결')) return;
     if (!activeUserPipelineId || fromModuleId === toModuleId) return;
     const current = userPipelines.find((p) => p.id === activeUserPipelineId);
     if (!current) return;
@@ -858,6 +945,7 @@ function App() {
 
   /** 모듈 조회/관리에서 연 모듈 전용: 이 모듈만 넣은 내 파이프라인을 만들고 워크플로 화면으로 이동 */
   const startPipelineFromModule = async (moduleId) => {
+    if (!requireAuthForCrud('파이프라인 생성')) return;
     const def = ALL_MODULE_CATALOG.find((m) => m.id === moduleId);
     if (!def || def.id === 'workflow') return;
     const { domainKey, domainLabel } = resolveDomainMetaForModule(def);
@@ -891,6 +979,7 @@ function App() {
 
   /** index와 index+1 모듈 사이의 연결만 끊음 (모듈은 파이프라인에 그대로 둠) */
   const disconnectEdgeAfterInUserPipeline = async (afterIndex) => {
+    if (!requireAuthForCrud('연결 해제')) return;
     if (!activeUserPipelineId) return;
     const current = userPipelines.find((p) => p.id === activeUserPipelineId);
     if (!current) return;
@@ -908,6 +997,7 @@ function App() {
   };
 
   const setUserPipelineModulePosition = async (pipelineId, moduleId, pos) => {
+    if (!requireAuthForCrud('모듈 위치 저장')) return;
     try {
       const updated = await updatePipelineModulePositionApi(pipelineId, moduleId, { x: pos.x, y: pos.y });
       setUserPipelines((prev) => prev.map((p) => (p.id === pipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)));
@@ -1059,6 +1149,7 @@ function App() {
   const savedSynthesis = moduleMemory.synthesis.savedAt ? moduleMemory.synthesis.data : null;
 
   const saveCurrentModule = async (moduleId) => {
+    if (!requireAuthForCrud('모듈 저장', { cacheDraft: true })) return;
     if (!activeUserPipelineId) {
       appendSystemMessage('파이프라인를 먼저 선택한 뒤 저장할 수 있습니다.');
       return;
@@ -1161,6 +1252,17 @@ function App() {
     };
     saveAuthState(next);
     setAuth(next);
+    if (typeof window !== 'undefined') {
+      const raw = window.sessionStorage.getItem(AUTH_REQUIRED_DRAFT_CACHE_KEY);
+      if (raw) {
+        const draft = readValidDraftCache(raw);
+        if (draft) {
+          restoreDraftCache(draft);
+          appendSystemMessage('임시 보관된 작성 내용을 복원했습니다.');
+        }
+        window.sessionStorage.removeItem(AUTH_REQUIRED_DRAFT_CACHE_KEY);
+      }
+    }
     moveToPath('/');
   };
 
@@ -1168,6 +1270,10 @@ function App() {
     await logout();
     clearAuthState();
     setAuth(null);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(AUTH_REQUIRED_DRAFT_CACHE_KEY);
+      window.sessionStorage.removeItem(AUTH_REQUIRED_DATA_FORM_CACHE_KEY);
+    }
   };
 
   const handleGoHome = () => {
@@ -1275,6 +1381,8 @@ function App() {
             onDeleteDataSource={deleteDataSource}
             onConnectDataToPipeline={connectDataToPipeline}
             onCreatePipelineAndLinkData={createPipelineAndLinkData}
+            onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
+            isAuthenticated={Boolean(auth?.user?.id)}
             onUpdateUserPipeline={updateUserPipeline}
             onMoveModuleInUserPipeline={moveModuleInUserPipeline}
             onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
