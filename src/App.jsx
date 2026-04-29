@@ -113,6 +113,9 @@ const AUTH_REQUIRED_DATA_FORM_CACHE_KEY = 'stage-one-auth-required-data-form';
 const AUTH_REQUIRED_DRAFT_TTL_MS = 30 * 60 * 1000;
 const APP_CACHE_PREFIXES = ['stage-one-', 'ai-workbench-'];
 const LOGOUT_CACHE_CLEAR_SIGNAL_KEY = 'stage-one-logout-cache-clear-signal';
+function getAuthUserId(auth) {
+  return auth?.user?.id ?? auth?.user?.userId ?? null;
+}
 
 function clearAppTemporaryCaches() {
   if (typeof window === 'undefined') return;
@@ -323,6 +326,7 @@ function App() {
     },
   ]);
   const [auth, setAuth] = useState(() => loadAuthState());
+  const currentUserId = getAuthUserId(auth);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -420,7 +424,7 @@ function App() {
   };
 
   const requireAuthForCrud = (actionLabel = '이 작업', { cacheDraft = false } = {}) => {
-    if (auth?.user?.id) return true;
+    if (currentUserId) return true;
     appendSystemMessage(`${actionLabel}은 로그인 후 사용할 수 있습니다.`);
     if (cacheDraft && typeof window !== 'undefined') {
       window.sessionStorage.setItem(
@@ -437,7 +441,7 @@ function App() {
   };
 
   const requestLoginForDataFormDraft = (draftPayload) => {
-    if (auth?.user?.id) return true;
+    if (currentUserId) return true;
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem(
         AUTH_REQUIRED_DATA_FORM_CACHE_KEY,
@@ -462,12 +466,16 @@ function App() {
 
   const reloadDataSources = async () => {
     try {
-      const payload = await listDataSourcesApi({ userId: auth?.user?.id });
+      const payload = await listDataSourcesApi({ userId: currentUserId });
       const items = payload?.items ?? payload?.dataSources ?? [];
       setDataSources(items.map(mapDataSourceRecordToRow));
       setDataSourcesAuthRequired(Boolean(payload?.authRequired));
       setDataSourcesAuthMessage(payload?.message || '');
     } catch (error) {
+      if (currentUserId) {
+        setDataSourcesAuthRequired(false);
+        setDataSourcesAuthMessage('');
+      }
       if (isApiError(error) && error.status === 401) return;
       appendSystemMessage('데이터소스 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     }
@@ -475,7 +483,7 @@ function App() {
 
   useEffect(() => {
     reloadDataSources();
-  }, [auth?.user?.id]);
+  }, [currentUserId]);
 
   const reloadTemplatePipelines = async () => {
     try {
@@ -489,12 +497,16 @@ function App() {
 
   const reloadUserPipelines = async () => {
     try {
-      const payload = await listPipelinesApi({ userId: auth?.user?.id });
+      const payload = await listPipelinesApi({ userId: currentUserId });
       const items = payload?.items ?? payload?.pipelines ?? [];
       setUserPipelines(items.map(mapPipelineRecordToUi));
       setUserPipelinesAuthRequired(Boolean(payload?.authRequired));
       setUserPipelinesAuthMessage(payload?.message || '');
     } catch (error) {
+      if (currentUserId) {
+        setUserPipelinesAuthRequired(false);
+        setUserPipelinesAuthMessage('');
+      }
       if (isApiError(error) && error.status === 401) return;
       appendSystemMessage('내 파이프라인 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     }
@@ -506,7 +518,7 @@ function App() {
 
   useEffect(() => {
     reloadUserPipelines();
-  }, [auth?.user?.id]);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!activeUserPipelineId) return;
@@ -551,7 +563,7 @@ function App() {
     } = payload;
     try {
       const created = await createDataSourceApi({
-        userId: auth?.user?.id ?? null,
+        userId: currentUserId,
         name,
         source,
         rowsLabel,
@@ -586,7 +598,7 @@ function App() {
   const updateDataSource = async (updatedData) => {
     if (!requireAuthForCrud('데이터 수정')) return false;
     const patch = {
-      userId: auth?.user?.id ?? null,
+      userId: currentUserId,
       name: updatedData.name,
       source: updatedData.source,
       rowsLabel: updatedData.rowsLabel,
@@ -719,7 +731,7 @@ function App() {
     if (!template) return;
     try {
       const copied = await copyPipelineTemplateApi(templateId, {
-        userId: auth?.user?.id ?? null,
+        userId: currentUserId,
         title: `${template.title} (복사본)`,
       });
       const pipeline = mapPipelineRecordToUi(copied.pipeline);
@@ -739,7 +751,7 @@ function App() {
     const current = userPipelines.find((p) => p.id === id);
     if (!current) return false;
     const patch = {
-      userId: auth?.user?.id ?? null,
+      userId: currentUserId,
       title: title != null ? String(title).trim() || current.title : current.title,
       description: description != null ? String(description).trim() : current.description,
       autoNamed: clearAutoNamed ? false : current.autoNamed,
@@ -784,13 +796,13 @@ function App() {
 
     try {
       const createdPipeline = await copyPipelineTemplateApi(templateId, {
-        userId: auth?.user?.id ?? null,
+        userId: currentUserId,
         title,
       });
       let pipeline = mapPipelineRecordToUi(createdPipeline.pipeline);
       if (pipelineDescription?.trim()) {
         const updatedPipeline = await updatePipelineApi(pipeline.id, {
-          userId: auth?.user?.id ?? null,
+          userId: currentUserId,
           description: pipelineDescription.trim(),
         });
         pipeline = mapPipelineRecordToUi(updatedPipeline.pipeline);
@@ -799,7 +811,7 @@ function App() {
 
       try {
         const createdDataSource = await createDataSourceApi({
-          userId: auth?.user?.id ?? null,
+          userId: currentUserId,
           name: datasetName,
           source,
           rowsLabel,
@@ -830,7 +842,7 @@ function App() {
     if (!source) return;
     try {
       const duplicated = await duplicatePipelineApi(id, {
-        userId: auth?.user?.id ?? null,
+        userId: currentUserId,
         title: `${source.title} (복사본)`,
       });
       const copy = mapPipelineRecordToUi(duplicated.pipeline);
@@ -995,7 +1007,7 @@ function App() {
     const { domainKey, domainLabel } = resolveDomainMetaForModule(def);
     try {
       const created = await createPipelineApi({
-        userId: auth?.user?.id ?? null,
+        userId: currentUserId,
         kind: 'custom',
         domainKey,
         domainLabel,
@@ -1102,7 +1114,7 @@ function App() {
     const loadSnapshot = async () => {
       try {
         const response = await getModuleSnapshotApi(activeUserPipelineId, selectedModule, {
-          userId: auth?.user?.id,
+          userId: currentUserId,
         });
         if (disposed || !response?.moduleSnapshot) return;
         const snap = response.moduleSnapshot;
@@ -1123,7 +1135,7 @@ function App() {
     return () => {
       disposed = true;
     };
-  }, [activeUserPipelineId, selectedModule, auth?.user?.id]);
+  }, [activeUserPipelineId, selectedModule, currentUserId]);
 
   const handleDomainChange = (key, value) => {
     setDomainForm((prev) => ({ ...prev, [key]: value }));
@@ -1211,7 +1223,7 @@ function App() {
     const summary = buildModuleSummary(moduleId, state);
     try {
       const response = await saveModuleSnapshotApi(activeUserPipelineId, moduleId, {
-        userId: auth?.user?.id ?? null,
+        userId: currentUserId,
         summary,
         data,
       });
@@ -1288,14 +1300,24 @@ function App() {
     selectedModule !== 'workflow' || Boolean(activePipelineId) || Boolean(activeUserPipelineId);
 
   const handleLoginSuccess = (login) => {
+    const normalizedUser = login?.user
+      ? {
+          ...login.user,
+          id: login.user.id ?? login.user.userId ?? null,
+        }
+      : null;
     const next = {
       accessToken: login.accessToken,
       tokenType: login.tokenType,
       expiresIn: login.expiresIn,
-      user: login.user,
+      user: normalizedUser,
     };
     saveAuthState(next);
     setAuth(next);
+    setDataSourcesAuthRequired(false);
+    setDataSourcesAuthMessage('');
+    setUserPipelinesAuthRequired(false);
+    setUserPipelinesAuthMessage('');
     if (typeof window !== 'undefined') {
       const raw = window.sessionStorage.getItem(AUTH_REQUIRED_DRAFT_CACHE_KEY);
       if (raw) {
@@ -1319,6 +1341,17 @@ function App() {
     }
     clearAuthState();
     setAuth(null);
+    setDataSources([]);
+    setDataSourcesAuthRequired(true);
+    setDataSourcesAuthMessage('로그인이 필요한 기능입니다.');
+    setUserPipelines([]);
+    setUserPipelinesAuthRequired(true);
+    setUserPipelinesAuthMessage('로그인이 필요한 기능입니다.');
+    setActivePipelineId(null);
+    setActiveUserPipelineId(null);
+    setActiveDomainKey(null);
+    setSelectedModule('workflow');
+    setMainHubSection('pipeline');
   };
 
   const handleGoHome = () => {
@@ -1347,6 +1380,7 @@ function App() {
       >
         <Sidebar
           auth={auth} 
+          isAuthenticated={Boolean(currentUserId)}
           moveToPath={moveToPath} 
           handleLogout={handleLogout} 
           handleGoHome={handleGoHome}
@@ -1430,7 +1464,7 @@ function App() {
             onCreatePipelineAndLinkData={createPipelineAndLinkData}
             onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
             onGoLogin={() => moveToPath('/login')}
-            isAuthenticated={Boolean(auth?.user?.id)}
+            isAuthenticated={Boolean(currentUserId)}
             userPipelinesAuthRequired={userPipelinesAuthRequired}
             userPipelinesAuthMessage={userPipelinesAuthMessage}
             onUpdateUserPipeline={updateUserPipeline}

@@ -29,7 +29,7 @@ function CollapsibleSection({ id, title, count, open, onToggle, children }) {
 }
 
 function Sidebar({
-  auth, moveToPath, handleLogout, handleGoHome,
+  auth, isAuthenticated, moveToPath, handleLogout, handleGoHome,
   showModuleSidebar, workflowModule, baseModules, domainModules,
   mainHubSection, onMainHubSectionChange, moduleSidebarFocus,
   onModuleSidebarFocus, onOpenModuleSettings, moduleStatus,
@@ -117,7 +117,7 @@ function Sidebar({
             </nav>
           </div>
           <div className="header-right-group">
-            {auth?.user ? (
+            {isAuthenticated ? (
               <div className="top-auth-box">
                 <span className="top-auth-name">{auth.user.name || auth.user.email}</span>
                 <button type="button" className="global-login-btn logout" onClick={handleLogout}>로그아웃</button>

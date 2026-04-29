@@ -11,7 +11,15 @@ export function loadAuthState() {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.accessToken || !parsed?.user) return null;
-    return parsed;
+    const normalizedUser = {
+      ...parsed.user,
+      id: parsed.user.id ?? parsed.user.userId ?? null,
+    };
+    if (!normalizedUser.id) return null;
+    return {
+      ...parsed,
+      user: normalizedUser,
+    };
   } catch {
     return null;
   }

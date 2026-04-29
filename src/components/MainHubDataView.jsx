@@ -530,7 +530,7 @@ function MainHubDataView({
             {dataSources.length === 0 ? (
               <tr>
                 <td colSpan={7} className="main-hub-table-empty">
-                  {authRequired ? (
+                  {authRequired && !isAuthenticated ? (
                     <>
                       <div>{authMessage || '로그인 후 조회 가능합니다.'}</div>
                       <button type="button" className="btn-primary-inline" onClick={() => onLoginRequired?.()}>
