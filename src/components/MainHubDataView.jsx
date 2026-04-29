@@ -39,6 +39,9 @@ function MainHubDataView({
   onCreatePipelineAndLinkData,
   onRequireLoginForDataFormDraft,
   isAuthenticated,
+  authRequired,
+  authMessage,
+  onLoginRequired,
 }) {
   /** 목록 | 추가 폼(기본·도메인·상세 한 화면) */
   const [dataFormView, setDataFormView] = useState('list');
@@ -527,7 +530,16 @@ function MainHubDataView({
             {dataSources.length === 0 ? (
               <tr>
                 <td colSpan={7} className="main-hub-table-empty">
-                  등록된 데이터가 없습니다. 위에서 추가하세요.
+                  {authRequired ? (
+                    <>
+                      <div>{authMessage || '로그인 후 조회 가능합니다.'}</div>
+                      <button type="button" className="btn-primary-inline" onClick={() => onLoginRequired?.()}>
+                        로그인하기
+                      </button>
+                    </>
+                  ) : (
+                    '등록된 데이터가 없습니다. 위에서 추가하세요.'
+                  )}
                 </td>
               </tr>
             ) : (

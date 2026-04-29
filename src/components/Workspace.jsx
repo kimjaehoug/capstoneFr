@@ -59,12 +59,17 @@ function Workspace({
   mainHubSection = 'pipeline',
   onMainHubSectionChange,
   dataSources,
+  dataSourcesAuthRequired,
+  dataSourcesAuthMessage,
   onAddDataSource,
   onUpdateDataSource,
   onDeleteDataSource,
   onConnectDataToPipeline,
   onCreatePipelineAndLinkData,
   onRequireLoginForDataFormDraft,
+  onGoLogin,
+  userPipelinesAuthRequired,
+  userPipelinesAuthMessage,
   onUpdateUserPipeline,
   onMoveModuleInUserPipeline,
   onRemoveModuleFromUserPipeline,
@@ -123,6 +128,8 @@ function Workspace({
     onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
     onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
     onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
+    userPipelinesAuthRequired={userPipelinesAuthRequired}
+    userPipelinesAuthMessage={userPipelinesAuthMessage}
   />
 );
 
@@ -142,6 +149,9 @@ function Workspace({
             onCreatePipelineAndLinkData={onCreatePipelineAndLinkData}
             onRequireLoginForDataFormDraft={onRequireLoginForDataFormDraft}
             isAuthenticated={isAuthenticated}
+            authRequired={dataSourcesAuthRequired}
+            authMessage={dataSourcesAuthMessage}
+            onLoginRequired={onGoLogin}
           />
         );
       } else if (mainHubSection === 'modules') {
@@ -170,6 +180,8 @@ function Workspace({
             onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
             onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
             onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
+            userPipelinesAuthRequired={userPipelinesAuthRequired}
+            userPipelinesAuthMessage={userPipelinesAuthMessage}
           />
         );
       } else {
@@ -193,6 +205,8 @@ function Workspace({
             onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
             onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
             onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
+            userPipelinesAuthRequired={userPipelinesAuthRequired}
+            userPipelinesAuthMessage={userPipelinesAuthMessage}
           />
         );
       }

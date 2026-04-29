@@ -20,6 +20,8 @@ function PipelineHub({
   onSetUserPipelineModulePosition: _onSetUserPipelineModulePosition,
   onConnectModuleAfterInUserPipeline: _onConnectModuleAfterInUserPipeline,
   onDisconnectEdgeAfterInUserPipeline: _onDisconnectEdgeAfterInUserPipeline,
+  userPipelinesAuthRequired,
+  userPipelinesAuthMessage,
 }) {
   const allPipelines = [...templatePipelines, ...userPipelines];
   const active = allPipelines.find((p) => p.id === activePipelineId);
@@ -226,7 +228,11 @@ function PipelineHub({
           </div>
           {userPipelines.length === 0 ? (
             <div className="hub-empty">
-              <p className="hub-empty-text">아직 없습니다. '공유 템플릿' 메뉴에서 복사하거나, 데이터 조회/관리에서 새로 만들 수 있습니다.</p>
+              <p className="hub-empty-text">
+                {userPipelinesAuthRequired
+                  ? userPipelinesAuthMessage || '로그인 후 조회 가능합니다.'
+                  : "아직 없습니다. '공유 템플릿' 메뉴에서 복사하거나, 데이터 조회/관리에서 새로 만들 수 있습니다."}
+              </p>
             </div>
           ) : (
             <div className="card-grid pipeline-catalog">

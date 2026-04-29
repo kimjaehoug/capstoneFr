@@ -260,11 +260,15 @@ function App() {
   const [activeUserPipelineId, setActiveUserPipelineId] = useState(null);
   const [templatePipelines, setTemplatePipelines] = useState(PIPELINES);
   const [userPipelines, setUserPipelines] = useState(() => loadUserPipelines());
+  const [userPipelinesAuthRequired, setUserPipelinesAuthRequired] = useState(false);
+  const [userPipelinesAuthMessage, setUserPipelinesAuthMessage] = useState('');
   const [activeDomainKey, setActiveDomainKey] = useState(null);
   const [mainHubSection, setMainHubSection] = useState('pipeline');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false);
   const [dataSources, setDataSources] = useState(() => loadDataSources());
+  const [dataSourcesAuthRequired, setDataSourcesAuthRequired] = useState(false);
+  const [dataSourcesAuthMessage, setDataSourcesAuthMessage] = useState('');
   const [domainModuleNotes, setDomainModuleNotes] = useState(() =>
     DOMAIN_MODULE_IDS.reduce((acc, id) => {
       acc[id] = '';
@@ -425,7 +429,10 @@ function App() {
   const reloadDataSources = async () => {
     try {
       const payload = await listDataSourcesApi({ userId: auth?.user?.id });
-      setDataSources((payload?.dataSources ?? []).map(mapDataSourceRecordToRow));
+      const items = payload?.items ?? payload?.dataSources ?? [];
+      setDataSources(items.map(mapDataSourceRecordToRow));
+      setDataSourcesAuthRequired(Boolean(payload?.authRequired));
+      setDataSourcesAuthMessage(payload?.message || '');
     } catch (error) {
       if (isApiError(error) && error.status === 401) return;
       appendSystemMessage('데이터소스 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -449,7 +456,10 @@ function App() {
   const reloadUserPipelines = async () => {
     try {
       const payload = await listPipelinesApi({ userId: auth?.user?.id });
-      setUserPipelines((payload?.pipelines ?? []).map(mapPipelineRecordToUi));
+      const items = payload?.items ?? payload?.pipelines ?? [];
+      setUserPipelines(items.map(mapPipelineRecordToUi));
+      setUserPipelinesAuthRequired(Boolean(payload?.authRequired));
+      setUserPipelinesAuthMessage(payload?.message || '');
     } catch (error) {
       if (isApiError(error) && error.status === 401) return;
       appendSystemMessage('내 파이프라인 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -1376,13 +1386,18 @@ function App() {
             mainHubSection={mainHubSection}
             onMainHubSectionChange={setMainHubSection}
             dataSources={dataSources}
+            dataSourcesAuthRequired={dataSourcesAuthRequired}
+            dataSourcesAuthMessage={dataSourcesAuthMessage}
             onAddDataSource={addDataSource}
             onUpdateDataSource={updateDataSource}
             onDeleteDataSource={deleteDataSource}
             onConnectDataToPipeline={connectDataToPipeline}
             onCreatePipelineAndLinkData={createPipelineAndLinkData}
             onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
+            onGoLogin={() => moveToPath('/login')}
             isAuthenticated={Boolean(auth?.user?.id)}
+            userPipelinesAuthRequired={userPipelinesAuthRequired}
+            userPipelinesAuthMessage={userPipelinesAuthMessage}
             onUpdateUserPipeline={updateUserPipeline}
             onMoveModuleInUserPipeline={moveModuleInUserPipeline}
             onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
