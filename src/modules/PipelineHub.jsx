@@ -1,21 +1,12 @@
 import { useEffect, useState } from 'react';
-import PipelineFlowCanvas from '../components/PipelineFlowCanvas';
-import { normalizeConnectedAfter } from '../utils/pipelineConnections';
-
-function formatSavedTime(isoDate) {
-  if (!isoDate) return '-';
-  return new Date(isoDate).toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import PipelineTimelineColumns from '../components/PipelineTimelineColumns';
 
 function PipelineHub({
   templatePipelines,
   userPipelines,
   modules,
   moduleStatus,
-  moduleMemory,
+  moduleMemory: _moduleMemory,
   activePipelineId,
   onSelectPipeline,
   onClearPipeline,
@@ -24,11 +15,11 @@ function PipelineHub({
   onDuplicateUserPipeline,
   onDeleteUserPipeline,
   onUpdateUserPipeline,
-  onMoveModuleInUserPipeline,
+  onMoveModuleInUserPipeline: _onMoveModuleInUserPipeline,
   onRemoveModuleFromUserPipeline,
-  onSetUserPipelineModulePosition,
-  onConnectModuleAfterInUserPipeline,
-  onDisconnectEdgeAfterInUserPipeline,
+  onSetUserPipelineModulePosition: _onSetUserPipelineModulePosition,
+  onConnectModuleAfterInUserPipeline: _onConnectModuleAfterInUserPipeline,
+  onDisconnectEdgeAfterInUserPipeline: _onDisconnectEdgeAfterInUserPipeline,
 }) {
   const allPipelines = [...templatePipelines, ...userPipelines];
   const active = allPipelines.find((p) => p.id === activePipelineId);
@@ -63,10 +54,6 @@ function PipelineHub({
   }, [listEditId, userPipelines]);
 
   if (active) {
-    const pipelineModules = active.moduleIds
-      .map((id) => modules.find((m) => m.id === id))
-      .filter(Boolean);
-
     return (
       <div className="pipeline-detail">
         <div className="pipeline-hub-toolbar">
@@ -172,24 +159,13 @@ function PipelineHub({
           </p>
         ) : null}
 
-        <PipelineFlowCanvas
-          steps={pipelineModules}
-          moduleIdsOrdered={active.moduleIds}
-          connectedAfter={normalizeConnectedAfter(active.moduleIds, active.connectedAfter)}
-          moduleLayout={activeIsUser ? active.moduleLayout : undefined}
-          moduleStatus={moduleStatus}
-          moduleMemory={moduleMemory}
-          formatSavedTime={formatSavedTime}
+        <PipelineTimelineColumns
+          pipelineKey={activeIsUser ? active.id : `tpl:${active.id}`}
           editable={activeIsUser}
-          pipelineId={activeIsUser ? active.id : null}
+          pipelineModuleIds={active.moduleIds}
+          modules={modules}
+          moduleStatus={moduleStatus}
           onOpenModule={onStartModule}
-          onRemoveModule={(moduleId) => onRemoveModuleFromUserPipeline?.(moduleId)}
-          onMoveModule={(from, to) => onMoveModuleInUserPipeline?.(from, to)}
-          onDisconnectAfter={(afterIndex) => {
-            if (activeIsUser) onDisconnectEdgeAfterInUserPipeline?.(afterIndex);
-          }}
-          onModulePositionChange={onSetUserPipelineModulePosition}
-          onConnectModuleAfter={(fromId, toId) => onConnectModuleAfterInUserPipeline?.(fromId, toId)}
         />
       </div>
     );
@@ -201,133 +177,153 @@ function PipelineHub({
         <p className="hub-eyebrow">Pipeline</p>
         <h3 className="hub-hero-title">파이프라인 조회/관리</h3>
         <p className="hub-hero-lead">
-          도메인별 데이터 파이프라인을 열고, 템플릿을 내 파이프라인으로 복사해 구성을 시작합니다. 파이프라인을
-          연 뒤에는 왼쪽에서 모듈을 추가·제거할 수 있습니다.
+          도메인별 데이터 파이프라인을 열고, 템플릿을 내 파이프라인으로 복사해 구성을 시작합니다. 연 뒤에는 고정된
+          6단계 가로 타임라인에서 단계별 부가 기능 후보를 고를 수 있습니다.
         </p>
       </header>
 
-      <section className="hub-section" aria-labelledby="hub-templates-heading">
-        <div className="hub-section-head">
-          <h4 id="hub-templates-heading" className="hub-section-title">
-            공유 템플릿
-          </h4>
-          <span className="hub-section-meta">{templatePipelines.length}개</span>
-        </div>
-        <div className="card-grid pipeline-catalog">
-          {templatePipelines.map((pipeline) => (
-            <article
-              key={pipeline.id}
-              className="card workflow-card pipeline-card pipeline-card--template"
-            >
-              <div className="workflow-card-head">
-                <h4>{pipeline.title}</h4>
-                <span className="domain-pill subtle">{pipeline.domainLabel}</span>
-              </div>
-              <p>{pipeline.description}</p>
-              <p className="muted-note pipeline-module-count">포함 모듈 {pipeline.moduleIds.length}개</p>
-              <div className="pipeline-card-actions">
-                <button type="button" className="btn-primary-inline" onClick={() => onSelectPipeline(pipeline.id)}>
-                  파이프라인 열기
-                </button>
-                <button type="button" className="btn-secondary-inline" onClick={() => onCopyTemplateToUser(pipeline.id)}>
-                  내 파이프라인으로 복사
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="hub-section hub-section--mine" aria-labelledby="hub-mine-heading">
-        <div className="hub-section-head">
-          <h4 id="hub-mine-heading" className="hub-section-title">
-            내 파이프라인
-          </h4>
-          <span className="hub-section-meta">{userPipelines.length}개</span>
-        </div>
-        {userPipelines.length === 0 ? (
-          <div className="hub-empty">
-            <p className="hub-empty-text">아직 없습니다. 위 템플릿에서 복사하거나, 데이터 조회/관리에서 새로 만들 수 있습니다.</p>
+      {templatePipelines && templatePipelines.length > 0 && (
+        <section className="hub-section" aria-labelledby="hub-templates-heading">
+          <div className="hub-section-head">
+            <h4 id="hub-templates-heading" className="hub-section-title">
+              공유 템플릿
+            </h4>
+            <span className="hub-section-meta">{templatePipelines.length}개</span>
           </div>
-        ) : (
           <div className="card-grid pipeline-catalog">
-            {userPipelines.map((pipeline) => (
+            {templatePipelines.map((pipeline) => (
               <article
                 key={pipeline.id}
-                className="card workflow-card pipeline-card pipeline-card--user"
+                className="card workflow-card pipeline-card pipeline-card--template"
               >
-                {listEditId === pipeline.id && onUpdateUserPipeline ? (
-                  <div className="pipeline-list-edit">
-                    <label className="form-field">
-                      <span>이름</span>
-                      <input value={listEditTitle} onChange={(e) => setListEditTitle(e.target.value)} />
-                    </label>
-                    <label className="form-field">
-                      <span>설명</span>
-                      <textarea rows={2} value={listEditDesc} onChange={(e) => setListEditDesc(e.target.value)} />
-                    </label>
-                    <div className="pipeline-list-edit-actions">
-                      <button
-                        type="button"
-                        className="btn-primary-inline"
-                        onClick={() => {
-                          onUpdateUserPipeline(pipeline.id, {
-                            title: listEditTitle,
-                            description: listEditDesc,
-                            clearAutoNamed: true,
-                          });
-                          setListEditId(null);
-                        }}
-                      >
-                        저장
-                      </button>
-                      <button type="button" className="btn-secondary-inline" onClick={() => setListEditId(null)}>
-                        취소
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="workflow-card-head">
-                      <h4>{pipeline.title}</h4>
-                      <span className="domain-pill subtle">{pipeline.domainLabel}</span>
-                    </div>
-                    {pipeline.autoNamed ? (
-                      <p className="pipeline-auto-named-hint">이름이 자동으로 붙었습니다. 수정에서 바꿀 수 있습니다.</p>
-                    ) : null}
-                    <p>{pipeline.description}</p>
-                    <p className="muted-note pipeline-module-count">포함 모듈 {pipeline.moduleIds.length}개</p>
-                  </>
-                )}
-                <div className="pipeline-card-actions pipeline-card-actions--user">
-                  <div className="pipeline-card-actions-primary">
-                    <button type="button" className="btn-primary-inline" onClick={() => onSelectPipeline(pipeline.id)}>
-                      파이프라인 열기
-                    </button>
-                    {onUpdateUserPipeline && listEditId !== pipeline.id ? (
-                      <button type="button" className="btn-secondary-inline" onClick={() => setListEditId(pipeline.id)}>
-                        수정
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="btn-secondary-inline"
-                      onClick={() => onDuplicateUserPipeline(pipeline.id)}
-                    >
-                      복사
-                    </button>
-                  </div>
-                  <button type="button" className="btn-danger-inline" onClick={() => onDeleteUserPipeline(pipeline.id)}>
-                    삭제
+                <div className="workflow-card-head">
+                  <h4>{pipeline.title}</h4>
+                  <span className="domain-pill subtle">{pipeline.domainLabel}</span>
+                </div>
+                <p>{pipeline.description}</p>
+                <p className="muted-note pipeline-module-count">포함 모듈 {pipeline.moduleIds.length}개</p>
+                <div className="pipeline-card-actions">
+                  <button type="button" className="btn-primary-inline" onClick={() => onSelectPipeline(pipeline.id)}>
+                    파이프라인 열기
+                  </button>
+                  <button type="button" className="btn-secondary-inline" onClick={() => onCopyTemplateToUser(pipeline.id)}>
+                    내 파이프라인으로 복사
                   </button>
                 </div>
               </article>
             ))}
           </div>
-        )}
-      </section>
-    </div>
-  );
+        </section>
+      )}
+
+      {(userPipelines.length > 0 || templatePipelines.length === 0) && (
+        <section className="hub-section hub-section--mine" aria-labelledby="hub-mine-heading">
+          <div className="hub-section-head">
+            <h4 id="hub-mine-heading" className="hub-section-title">
+              내 파이프라인
+            </h4>
+            <span className="hub-section-meta">{userPipelines.length}개</span>
+          </div>
+          {userPipelines.length === 0 ? (
+            <div className="hub-empty">
+              <p className="hub-empty-text">아직 없습니다. '공유 템플릿' 메뉴에서 복사하거나, 데이터 조회/관리에서 새로 만들 수 있습니다.</p>
+            </div>
+          ) : (
+            <div className="card-grid pipeline-catalog">
+              {userPipelines.map((pipeline) => (
+                <article
+                  key={pipeline.id}
+                  className="card workflow-card pipeline-card pipeline-card--user"
+                >
+                  {listEditId === pipeline.id && onUpdateUserPipeline ? (
+                    <div className="pipeline-list-edit">
+                      <label className="form-field">
+                        <span>이름</span>
+                        <input value={listEditTitle} onChange={(e) => setListEditTitle(e.target.value)} />
+                      </label>
+                      <label className="form-field">
+                        <span>설명</span>
+                        <textarea rows={2} value={listEditDesc} onChange={(e) => setListEditDesc(e.target.value)} />
+                      </label>
+                      <div className="pipeline-list-edit-actions">
+                        <button
+                          type="button"
+                          className="btn-primary-inline"
+                          onClick={() => {
+                            onUpdateUserPipeline(pipeline.id, {
+                              title: listEditTitle,
+                              description: listEditDesc,
+                              clearAutoNamed: true,
+                            });
+                            setListEditId(null);
+                          }}
+                        >
+                          저장
+                        </button>
+                        <button type="button" className="btn-secondary-inline" onClick={() => setListEditId(null)}>
+                          취소
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="workflow-card-head">
+                        <h4>{pipeline.title}</h4>
+                        <span className="domain-pill subtle">{pipeline.domainLabel}</span>
+                      </div>
+                      {pipeline.autoNamed ? (
+                        <p className="pipeline-auto-named-hint">이름이 자동으로 붙었습니다. 수정에서 바꿀 수 있습니다.</p>
+                      ) : null}
+                      <p>{pipeline.description}</p>
+                      <p className="muted-note pipeline-module-count">포함 모듈 {pipeline.moduleIds.length}개</p>
+                    </>
+                  )}
+                  <div className="pipeline-card-actions pipeline-card-actions--user">
+                    <div className="pipeline-card-actions-primary">
+                      <button type="button" className="btn-primary-inline" onClick={() => onSelectPipeline(pipeline.id)}>
+                        파이프라인 열기
+                      </button>
+                      {onUpdateUserPipeline && listEditId !== pipeline.id ? (
+                        <button type="button" className="btn-secondary-inline" onClick={() => setListEditId(pipeline.id)}>
+                          수정
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="btn-secondary-inline"
+                        onClick={() => onDuplicateUserPipeline(pipeline.id)}
+                      >
+                        복사
+                      </button>
+                    </div>
+                    <button type="button" className="btn-danger-inline" onClick={() => onDeleteUserPipeline(pipeline.id)}>
+                      삭제
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {active && (
+      <PipelineTimelineColumns
+        pipelineKey={activeIsUser ? active.id : `tpl:${active.id}`}
+        editable={activeIsUser}
+        pipelineModuleIds={active.moduleIds}
+        modules={modules}
+        moduleStatus={moduleStatus}
+        onOpenModule={onStartModule}
+        onMoveModule={_onMoveModuleInUserPipeline}
+        onRemoveModule={onRemoveModuleFromUserPipeline}
+        onSetModulePosition={_onSetUserPipelineModulePosition}
+        onConnectAfter={_onConnectModuleAfterInUserPipeline}
+        onDisconnectAfter={_onDisconnectEdgeAfterInUserPipeline}
+      />
+    )}
+  </div>
+);
 }
 
 export default PipelineHub;

@@ -140,9 +140,19 @@ function createInitialModuleMemory() {
 }
 
 function App() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingPipelineId, setPendingPipelineId] = useState(null);
+  const [pendingTitle, setPendingTitle] = useState("");
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [pipelineToDelete, setPipelineToDelete] = useState(null);
   const [currentPath, setCurrentPath] = useState(() =>
     typeof window === 'undefined' ? '/' : window.location.pathname || '/'
   );
+
+  const [isDataDeleteModalOpen, setIsDataDeleteModalOpen] = useState(false);
+  const [dataSourceToDelete, setDataSourceToDelete] = useState(null);
+
   const [selectedModule, setSelectedModule] = useState('workflow');
   /** 사이드바 목록에서 한 번 클릭으로만 바뀌는 강조(설정 화면은 더블클릭) */
   const [moduleSidebarFocus, setModuleSidebarFocus] = useState('workflow');
@@ -152,6 +162,7 @@ function App() {
   const [activeDomainKey, setActiveDomainKey] = useState(null);
   const [mainHubSection, setMainHubSection] = useState('pipeline');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false);
   const [dataSources, setDataSources] = useState(() => loadDataSources());
   const [domainModuleNotes, setDomainModuleNotes] = useState(() =>
     DOMAIN_MODULE_IDS.reduce((acc, id) => {
@@ -276,8 +287,29 @@ function App() {
     ]);
   };
 
+  const updateDataSource = (updatedData) => {
+  setDataSources((prev) => 
+    prev.map((item) => (item.id === updatedData.id ? { ...item, ...updatedData, updated: '방금 수정' } : item))
+  );
+  appendSystemMessage(`"${updatedData.name}" 데이터 정보가 수정되었습니다.`);
+};
+
   const deleteDataSource = (id) => {
+    const target = dataSources.find((d) => d.id === id);
+    if (!target) return;
+    setDataSourceToDelete(target);
+    setIsDataDeleteModalOpen(true);
+  };
+
+  const confirmDataDelete = () => {
+    if (!dataSourceToDelete) return;
+
+    const {id, name} = dataSourceToDelete;
     setDataSources((prev) => prev.filter((d) => d.id !== id));
+    appendSystemMessage(`"${name}" 데이터셋이 삭제되었습니다.`);
+
+    setIsDataDeleteModalOpen(false);
+    setDataSourceToDelete(null);
   };
 
   const connectDataToPipeline = (pipelineId) => {
@@ -340,7 +372,7 @@ function App() {
   const copyTemplateToUser = (templateId) => {
     const template = PIPELINES.find((p) => p.id === templateId);
     if (!template) return;
-    setMainHubSection('pipeline');
+    //setMainHubSection('pipeline');
     const newPl = {
       id: newEntityId('user'),
       domainKey: template.domainKey,
@@ -355,13 +387,18 @@ function App() {
       autoNamed: false,
     };
     setUserPipelines((prev) => [...prev, newPl]);
-    setActiveUserPipelineId(newPl.id);
-    setActivePipelineId(newPl.id);
+
+    setPendingPipelineId(newPl.id);
+    setPendingTitle(template.title);
+    setIsModalOpen(true);
+
     setActiveDomainKey(template.domainKey);
-    setSelectedModule('workflow');
-    appendSystemMessage(
-      `내 파이프라인 "${newPl.title}"이(가) 만들어졌습니다. 왼쪽에서 모듈을 조정할 수 있습니다.`
-    );
+  
+    setTimeout(() => {
+      appendSystemMessage(
+        `내 파이프라인 "${newPl.title}"이(가) 만들어졌습니다. '내 파이프라인' 메뉴에서 확인 가능합니다.`
+      );
+    }, 100);
   };
 
   const updateUserPipeline = (id, { title, description, clearAutoNamed }) => {
@@ -458,15 +495,27 @@ function App() {
   const deleteUserPipeline = (id) => {
     const pl = userPipelines.find((p) => p.id === id);
     if (!pl) return;
-    if (!window.confirm(`"${pl.title}" 파이프라인을 삭제할까요?`)) return;
+    
+    setPipelineToDelete(pl); 
+    setIsDeleteModalOpen(true);
+};
+
+  const confirmDelete = () => {
+    if (!pipelineToDelete) return;
+    
+    const id = pipelineToDelete.id;
     setUserPipelines((prev) => prev.filter((p) => p.id !== id));
+    
     if (activeUserPipelineId === id) setActiveUserPipelineId(null);
     if (activePipelineId === id) {
-      setActivePipelineId(null);
-      setActiveDomainKey(null);
+        setActivePipelineId(null);
+        setActiveDomainKey(null);
     }
-    appendSystemMessage('파이프라인이 삭제되었습니다.');
-  };
+    
+    appendSystemMessage(`"${pipelineToDelete.title}" 파이프라인이 삭제되었습니다.`);
+    setIsDeleteModalOpen(false);
+    setPipelineToDelete(null);
+};
 
   const addModuleToUserPipeline = (moduleId) => {
     if (!activeUserPipelineId) return;
@@ -477,18 +526,55 @@ function App() {
       prev.map((p) => {
         if (p.id !== activeUserPipelineId) return p;
         if (p.moduleIds.includes(moduleId)) return p;
-        const layout = { ...(p.moduleLayout || {}) };
-        const lastId = p.moduleIds[p.moduleIds.length - 1];
-        if (lastId && layout[lastId]) {
-          layout[moduleId] = { x: layout[lastId].x + 120, y: layout[lastId].y + 60 };
+        const deps = Array.isArray(def?.pipelineFrom) ? def.pipelineFrom : [];
+        let insertIndex = p.moduleIds.length;
+        const depIndexes = deps
+          .map((depId) => p.moduleIds.indexOf(depId))
+          .filter((idx) => idx >= 0);
+        if (depIndexes.length > 0) {
+          insertIndex = Math.max(...depIndexes) + 1;
         } else {
-          layout[moduleId] = { x: 160 + p.moduleIds.length * 48, y: 160 + p.moduleIds.length * 48 };
+          const newModuleOrder = MODULES.findIndex((m) => m.id === moduleId);
+          if (newModuleOrder >= 0) {
+            const nextOrderedIndex = p.moduleIds.findIndex((id) => {
+              const currentOrder = MODULES.findIndex((m) => m.id === id);
+              return currentOrder > newModuleOrder;
+            });
+            if (nextOrderedIndex >= 0) insertIndex = nextOrderedIndex;
+          }
+        }
+        const nextIds = [...p.moduleIds];
+        nextIds.splice(insertIndex, 0, moduleId);
+        const layout = { ...(p.moduleLayout || {}) };
+        const prevId = nextIds[insertIndex - 1];
+        const nextId = nextIds[insertIndex + 1];
+        if (prevId && nextId && layout[prevId] && layout[nextId]) {
+          layout[moduleId] = {
+            x: Math.round((layout[prevId].x + layout[nextId].x) / 2),
+            y: Math.round((layout[prevId].y + layout[nextId].y) / 2),
+          };
+        } else if (prevId && layout[prevId]) {
+          layout[moduleId] = { x: layout[prevId].x + 120, y: layout[prevId].y + 60 };
+        } else if (nextId && layout[nextId]) {
+          layout[moduleId] = { x: Math.max(40, layout[nextId].x - 120), y: Math.max(40, layout[nextId].y - 60) };
+        } else {
+          layout[moduleId] = { x: 160 + nextIds.length * 48, y: 160 + nextIds.length * 48 };
         }
         const prevConn = normalizeConnectedAfter(p.moduleIds, p.connectedAfter);
+        const nextConn = Array(nextIds.length - 1).fill(false);
+        for (let i = 0; i < p.moduleIds.length - 1; i++) {
+          if (!prevConn[i]) continue;
+          const from = p.moduleIds[i];
+          const to = p.moduleIds[i + 1];
+          const fromIdx = nextIds.indexOf(from);
+          if (fromIdx >= 0 && nextIds[fromIdx + 1] === to) {
+            nextConn[fromIdx] = true;
+          }
+        }
         return {
           ...p,
-          moduleIds: [...p.moduleIds, moduleId],
-          connectedAfter: [...prevConn, true],
+          moduleIds: nextIds,
+          connectedAfter: nextConn,
           moduleLayout: layout,
         };
       })
@@ -866,6 +952,15 @@ function App() {
     setAuth(null);
   };
 
+  const handleGoHome = () => {
+    moveToPath('/');
+    setSelectedModule('workflow');
+    setMainHubSection('pipeline');
+    setActivePipelineId(null);
+    setActiveUserPipelineId(null);
+    setActiveDomainKey(null);
+  };
+
   if (currentPath === '/login') {
     return (
       <div className="app-root">
@@ -876,27 +971,27 @@ function App() {
 
   return (
     <div className="app-root">
-      {auth?.user ? (
-        <div className="top-auth-box">
-          <span className="top-auth-name">{auth.user.name || auth.user.email}</span>
-          <button type="button" className="top-login-btn" onClick={handleLogout}>
-            로그아웃
-          </button>
-        </div>
-      ) : (
-        <button type="button" className="top-login-btn" onClick={() => moveToPath('/login')}>
-          로그인
-        </button>
-      )}
-
-      <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
+      <div
+        className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}${
+          chatPanelCollapsed ? ' app-shell--chat-collapsed' : ''
+        }`}
+      >
         <Sidebar
+          auth={auth} 
+          moveToPath={moveToPath} 
+          handleLogout={handleLogout} 
+          handleGoHome={handleGoHome}
           showModuleSidebar={showModuleSidebar}
           workflowModule={MODULES[0]}
           baseModules={MODULES.slice(1)}
           domainModules={domainSidebarModules}
           mainHubSection={mainHubSection}
-          onMainHubSectionChange={setMainHubSection}
+          onMainHubSectionChange={(id) => {
+            setMainHubSection(id);
+            setActivePipelineId(null);
+            setActiveUserPipelineId(null);
+            setActiveDomainKey(null);
+          }}
           moduleSidebarFocus={moduleSidebarFocus}
           onModuleSidebarFocus={handleModuleSidebarFocus}
           onOpenModuleSettings={handleSelectModule}
@@ -958,6 +1053,7 @@ function App() {
             onMainHubSectionChange={setMainHubSection}
             dataSources={dataSources}
             onAddDataSource={addDataSource}
+            onUpdateDataSource={updateDataSource}
             onDeleteDataSource={deleteDataSource}
             onConnectDataToPipeline={connectDataToPipeline}
             onCreatePipelineAndLinkData={createPipelineAndLinkData}
@@ -972,6 +1068,77 @@ function App() {
           />
         </main>
 
+        {isModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>알림</h3>
+            <p>
+            <strong>"{pendingTitle}"</strong>이 복사되었습니다.<br/>
+            '내 파이프라인' 메뉴에서 확인하시겠습니까?
+            </p>
+            <div className="modal-actions">
+              <button className="btn-modal-primary" onClick={() => {
+                setMainHubSection('pipeline-mine');
+                //setActiveUserPipelineId(pendingPipelineId);
+                //setActivePipelineId(null);
+                setSelectedModule('workflow');
+                setIsModalOpen(false);
+              }}>예</button>
+              <button className="btn-modal-secondary" onClick={() => setIsModalOpen(false)}>아니오</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>파이프라인 삭제</h3>
+            <p>
+              <strong>"{pipelineToDelete?.title}"</strong><br/>
+              이 파이프라인을 정말 삭제하시겠습니까?
+            </p>
+            <div className="modal-actions">
+              <button 
+                className="btn-modal-delete-primary" 
+                onClick={confirmDelete}
+              >
+                삭제하기
+              </button>
+              <button className="btn-modal-secondary" onClick={() => setIsDeleteModalOpen(false)}>
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDataDeleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>데이터 삭제</h3>
+            <p>
+              <strong>"{dataSourceToDelete?.name}"</strong><br/>
+              이 데이터셋을 정말 삭제하시겠습니까?
+            </p>
+            <div className="modal-actions">
+              <button 
+                className="btn-modal-delete-primary"
+                onClick={confirmDataDelete}
+              >
+                삭제하기
+              </button>
+              <button 
+                className="btn-modal-secondary" 
+                onClick={() => setIsDataDeleteModalOpen(false)}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
         <ChatPanel
           messages={chatMessages}
           onSendMessage={appendChat}
@@ -979,6 +1146,8 @@ function App() {
           modules={ALL_MODULE_CATALOG}
           moduleStatus={moduleStatus}
           moduleMemory={moduleMemory}
+          collapsed={chatPanelCollapsed}
+          onToggleCollapsed={() => setChatPanelCollapsed(!chatPanelCollapsed)}
         />
       </div>
     </div>
