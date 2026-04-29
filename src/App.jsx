@@ -107,6 +107,7 @@ const SAVEABLE_MODULES = [
 ];
 
 const USER_PIPELINES_KEY = 'ai-workbench-user-pipelines';
+const AUTH_EXPIRED_NOTICE_KEY = 'stage-one-auth-expired-notice';
 
 function migrateUserPipeline(p) {
   const labelMap = { 의료: 'medical', 금융: 'finance', 제조: 'manufacturing' };
@@ -296,8 +297,19 @@ function App() {
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(
+          AUTH_EXPIRED_NOTICE_KEY,
+          '세션이 만료되었습니다. 다시 로그인해주세요.',
+        );
+      }
       clearAuthState();
       setAuth(null);
+      setSelectedModule('workflow');
+      setMainHubSection('pipeline');
+      setActivePipelineId(null);
+      setActiveUserPipelineId(null);
+      setActiveDomainKey(null);
       if (typeof window !== 'undefined' && (window.location.pathname || '/') !== '/login') {
         window.history.pushState({}, '', '/login');
         setCurrentPath('/login');

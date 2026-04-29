@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { loginWithCredentials, signupWithCredentials } from '../utils/auth';
 import './LoginPage.css';
+
+const AUTH_EXPIRED_NOTICE_KEY = 'stage-one-auth-expired-notice';
 
 function LoginPage({ onBack, onLoginSuccess }) {
   const [mode, setMode] = useState('login'); 
@@ -11,6 +13,14 @@ function LoginPage({ onBack, onLoginSuccess }) {
   }); 
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false); 
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const notice = window.sessionStorage.getItem(AUTH_EXPIRED_NOTICE_KEY);
+    if (!notice) return;
+    setStatus(notice);
+    window.sessionStorage.removeItem(AUTH_EXPIRED_NOTICE_KEY);
+  }, []);
 
   const onChangeField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
