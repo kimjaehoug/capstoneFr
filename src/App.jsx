@@ -1347,11 +1347,6 @@ function App() {
     setUserPipelines([]);
     setUserPipelinesAuthRequired(true);
     setUserPipelinesAuthMessage('로그인이 필요한 기능입니다.');
-    setActivePipelineId(null);
-    setActiveUserPipelineId(null);
-    setActiveDomainKey(null);
-    setSelectedModule('workflow');
-    setMainHubSection('pipeline');
   };
 
   const handleGoHome = () => {
