@@ -17,6 +17,14 @@ import {
   updateDataSourceLinkedPipeline as updateDataSourceLinkedPipelineApi,
 } from './api/dataSources';
 import {
+  copyPipelineTemplate as copyPipelineTemplateApi,
+  deletePipeline as deletePipelineApi,
+  duplicatePipeline as duplicatePipelineApi,
+  listPipelines as listPipelinesApi,
+  listPipelineTemplates as listPipelineTemplatesApi,
+  updatePipeline as updatePipelineApi,
+} from './api/pipelines';
+import {
   connectAfterReorder,
   defaultConnectedAfter,
   mergeConnectionsAfterRemove,
@@ -175,6 +183,35 @@ function createInitialModuleMemory() {
   }, {});
 }
 
+function connectedAfterIdsToFlags(moduleIds, connectedAfterIds) {
+  if (!Array.isArray(moduleIds) || moduleIds.length <= 1) return [];
+  const ids = Array.isArray(connectedAfterIds) ? connectedAfterIds : [];
+  return moduleIds.slice(0, -1).map((moduleId) => ids.includes(moduleId));
+}
+
+function connectedAfterFlagsToIds(moduleIds, connectedAfterFlags) {
+  if (!Array.isArray(moduleIds) || moduleIds.length <= 1) return [];
+  const flags = normalizeConnectedAfter(moduleIds, connectedAfterFlags);
+  return moduleIds.slice(0, -1).filter((moduleId, index) => Boolean(flags[index]));
+}
+
+function mapPipelineRecordToUi(record) {
+  const moduleIds = Array.isArray(record.moduleIds) ? record.moduleIds : [];
+  return {
+    id: record.id,
+    domainKey: record.domainKey || null,
+    domainLabel: record.domainLabel || '',
+    title: record.title,
+    description: record.description || '',
+    moduleIds,
+    connectedAfter: connectedAfterIdsToFlags(moduleIds, record.connectedAfter),
+    moduleLayout: record.moduleLayout || {},
+    highlight: record.highlight || '',
+    createdAt: record.createdAt || new Date().toISOString(),
+    autoNamed: Boolean(record.autoNamed),
+  };
+}
+
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingPipelineId, setPendingPipelineId] = useState(null);
@@ -194,6 +231,7 @@ function App() {
   const [moduleSidebarFocus, setModuleSidebarFocus] = useState('workflow');
   const [activePipelineId, setActivePipelineId] = useState(null);
   const [activeUserPipelineId, setActiveUserPipelineId] = useState(null);
+  const [templatePipelines, setTemplatePipelines] = useState(PIPELINES);
   const [userPipelines, setUserPipelines] = useState(() => loadUserPipelines());
   const [activeDomainKey, setActiveDomainKey] = useState(null);
   const [mainHubSection, setMainHubSection] = useState('pipeline');
@@ -288,6 +326,34 @@ function App() {
     reloadDataSources();
   }, [auth?.user?.id]);
 
+  const reloadTemplatePipelines = async () => {
+    try {
+      const payload = await listPipelineTemplatesApi();
+      setTemplatePipelines((payload?.templates ?? []).map(mapPipelineRecordToUi));
+    } catch {
+      setTemplatePipelines(PIPELINES);
+      appendSystemMessage('파이프라인 템플릿을 불러오지 못해 기본 템플릿을 사용합니다.');
+    }
+  };
+
+  const reloadUserPipelines = async () => {
+    try {
+      const payload = await listPipelinesApi({ userId: auth?.user?.id });
+      setUserPipelines((payload?.pipelines ?? []).map(mapPipelineRecordToUi));
+    } catch (error) {
+      if (isApiError(error) && error.status === 401) return;
+      appendSystemMessage('내 파이프라인 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
+
+  useEffect(() => {
+    reloadTemplatePipelines();
+  }, []);
+
+  useEffect(() => {
+    reloadUserPipelines();
+  }, [auth?.user?.id]);
+
   useEffect(() => {
     if (!activeUserPipelineId) return;
     const pl = userPipelines.find((p) => p.id === activeUserPipelineId);
@@ -310,7 +376,7 @@ function App() {
     setMainHubSection('pipeline');
     setActivePipelineId(id);
     setActiveUserPipelineId(userPipelines.some((p) => p.id === id) ? id : null);
-    const resolved = [...PIPELINES, ...userPipelines].find((p) => p.id === id);
+    const resolved = [...templatePipelines, ...userPipelines].find((p) => p.id === id);
     setActiveDomainKey(resolved?.domainKey ?? null);
   };
 
@@ -490,59 +556,59 @@ function App() {
     ]);
   };
 
-  const copyTemplateToUser = (templateId) => {
-    const template = PIPELINES.find((p) => p.id === templateId);
+  const copyTemplateToUser = async (templateId) => {
+    const template = templatePipelines.find((p) => p.id === templateId);
     if (!template) return;
-    //setMainHubSection('pipeline');
-    const newPl = {
-      id: newEntityId('user'),
-      domainKey: template.domainKey,
-      domainLabel: template.domainLabel,
-      title: `${template.title} (복사본)`,
-      description: template.description,
-      moduleIds: [...template.moduleIds],
-      connectedAfter: defaultConnectedAfter(template.moduleIds.length),
-      moduleLayout: defaultLayoutFromIds(template.moduleIds),
-      highlight: template.highlight || '',
-      createdAt: new Date().toISOString(),
-      autoNamed: false,
+    try {
+      const copied = await copyPipelineTemplateApi(templateId, {
+        userId: auth?.user?.id ?? null,
+        title: `${template.title} (복사본)`,
+      });
+      const pipeline = mapPipelineRecordToUi(copied.pipeline);
+      setUserPipelines((prev) => [...prev, pipeline]);
+      setPendingPipelineId(pipeline.id);
+      setPendingTitle(template.title);
+      setIsModalOpen(true);
+      setActiveDomainKey(pipeline.domainKey);
+      appendSystemMessage(`내 파이프라인 "${pipeline.title}"이(가) 만들어졌습니다.`);
+    } catch (error) {
+      appendSystemMessage(`템플릿 복사 실패: ${error?.message || '오류가 발생했습니다.'}`);
+    }
+  };
+
+  const updateUserPipeline = async (id, { title, description, clearAutoNamed }) => {
+    const current = userPipelines.find((p) => p.id === id);
+    if (!current) return false;
+    const patch = {
+      userId: auth?.user?.id ?? null,
+      title: title != null ? String(title).trim() || current.title : current.title,
+      description: description != null ? String(description).trim() : current.description,
+      autoNamed: clearAutoNamed ? false : current.autoNamed,
     };
-    setUserPipelines((prev) => [...prev, newPl]);
-
-    setPendingPipelineId(newPl.id);
-    setPendingTitle(template.title);
-    setIsModalOpen(true);
-
-    setActiveDomainKey(template.domainKey);
-  
-    setTimeout(() => {
-      appendSystemMessage(
-        `내 파이프라인 "${newPl.title}"이(가) 만들어졌습니다. '내 파이프라인' 메뉴에서 확인 가능합니다.`
+    try {
+      const updated = await updatePipelineApi(id, patch);
+      setUserPipelines((prev) =>
+        prev.map((p) => (p.id === id ? mapPipelineRecordToUi(updated.pipeline) : p)),
       );
-    }, 100);
+      return true;
+    } catch (error) {
+      if (isApiError(error) && error.status === 404) {
+        appendSystemMessage('대상 파이프라인이 존재하지 않습니다. 목록을 갱신합니다.');
+        await reloadUserPipelines();
+        return false;
+      }
+      appendSystemMessage(`파이프라인 수정 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      return false;
+    }
   };
 
-  const updateUserPipeline = (id, { title, description, clearAutoNamed }) => {
-    setUserPipelines((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        const next = { ...p };
-        if (title != null) next.title = String(title).trim() || p.title;
-        if (description != null) next.description = String(description).trim();
-        if (clearAutoNamed) next.autoNamed = false;
-        return next;
-      })
-    );
-  };
-
-  const createPipelineAndLinkData = ({
+  const createPipelineAndLinkData = async ({
     datasetName,
     source,
     rowsLabel,
     templateId,
     pipelineTitle,
     pipelineDescription,
-    domainDescription,
     domainIndustryContext,
     domainSubjectScope,
     domainRegulationScope,
@@ -551,66 +617,71 @@ function App() {
     rowUnit,
     sensitivityNote,
   }) => {
-    const template = PIPELINES.find((p) => p.id === templateId);
+    const template = templatePipelines.find((p) => p.id === templateId);
     if (!template) return;
-    const idx = userPipelines.length + 1;
     const hasCustomTitle = Boolean(pipelineTitle?.trim());
-    const title = hasCustomTitle ? pipelineTitle.trim() : `파이프라인 ${idx}`;
-    const description =
-      pipelineDescription?.trim() ||
-      `「${datasetName}」에 연결된 처리 흐름입니다. 모듈을 진행한 뒤 이름·설명을 다듬을 수 있습니다.`;
-    const newPl = {
-      id: newEntityId('user'),
-      domainKey: template.domainKey,
-      domainLabel: template.domainLabel,
-      title,
-      description,
-      moduleIds: [...template.moduleIds],
-      connectedAfter: defaultConnectedAfter(template.moduleIds.length),
-      moduleLayout: defaultLayoutFromIds(template.moduleIds),
-      highlight: template.highlight || '',
-      createdAt: new Date().toISOString(),
-      autoNamed: !hasCustomTitle,
-    };
-    setUserPipelines((prev) => [...prev, newPl]);
-    setDataSources((prev) => [
-      ...prev,
-      {
-        id: newEntityId('ds'),
-        name: datasetName,
-        source,
-        updated: '방금 추가',
-        rows: rowsLabel,
-        linkedPipelineId: newPl.id,
-        ...(domainDescription?.trim() ? { domainDescription: domainDescription.trim() } : {}),
-        ...(domainIndustryContext?.trim() ? { domainIndustryContext: domainIndustryContext.trim() } : {}),
-        ...(domainSubjectScope?.trim() ? { domainSubjectScope: domainSubjectScope.trim() } : {}),
-        ...(domainRegulationScope?.trim() ? { domainRegulationScope: domainRegulationScope.trim() } : {}),
-        ...(domainStakeholderNotes?.trim() ? { domainStakeholderNotes: domainStakeholderNotes.trim() } : {}),
-        ...(dataModality?.trim() ? { dataModality: dataModality.trim() } : {}),
-        ...(rowUnit?.trim() ? { rowUnit: rowUnit.trim() } : {}),
-        ...(sensitivityNote?.trim() ? { sensitivityNote: sensitivityNote.trim() } : {}),
-      },
-    ]);
-    appendSystemMessage(`파이프라인 "${title}"이(가) 만들어지고 데이터와 연결되었습니다.`);
+    const title = hasCustomTitle ? pipelineTitle.trim() : `파이프라인 ${userPipelines.length + 1}`;
+
+    try {
+      const createdPipeline = await copyPipelineTemplateApi(templateId, {
+        userId: auth?.user?.id ?? null,
+        title,
+      });
+      let pipeline = mapPipelineRecordToUi(createdPipeline.pipeline);
+      if (pipelineDescription?.trim()) {
+        const updatedPipeline = await updatePipelineApi(pipeline.id, {
+          userId: auth?.user?.id ?? null,
+          description: pipelineDescription.trim(),
+        });
+        pipeline = mapPipelineRecordToUi(updatedPipeline.pipeline);
+      }
+      setUserPipelines((prev) => [...prev, pipeline]);
+
+      try {
+        const createdDataSource = await createDataSourceApi({
+          userId: auth?.user?.id ?? null,
+          name: datasetName,
+          source,
+          rowsLabel,
+          linkedPipelineId: pipeline.id,
+          domainIndustryContext: domainIndustryContext || null,
+          domainSubjectScope: domainSubjectScope || null,
+          domainRegulationScope: domainRegulationScope || null,
+          domainStakeholderNotes: domainStakeholderNotes || null,
+          dataModality: dataModality || null,
+          rowUnit: rowUnit || null,
+          sensitivityNote: sensitivityNote || null,
+        });
+        setDataSources((prev) => [...prev, mapDataSourceRecordToRow(createdDataSource.dataSource)]);
+        appendSystemMessage(`파이프라인 "${pipeline.title}"이(가) 만들어지고 데이터와 연결되었습니다.`);
+      } catch {
+        appendSystemMessage('파이프라인은 생성되었지만 데이터 연결에 실패했습니다. 데이터 연결을 다시 시도해주세요.');
+      }
+      return true;
+    } catch (error) {
+      appendSystemMessage(`파이프라인 생성 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      return false;
+    }
   };
 
-  const duplicateUserPipeline = (id) => {
+  const duplicateUserPipeline = async (id) => {
     const source = userPipelines.find((p) => p.id === id);
     if (!source) return;
-    const copy = {
-      ...source,
-      id: newEntityId('user'),
-      title: `${source.title} (복사본)`,
-      createdAt: new Date().toISOString(),
-      autoNamed: false,
-    };
-    setUserPipelines((prev) => [...prev, copy]);
-    setActiveUserPipelineId(copy.id);
-    setActivePipelineId(copy.id);
-    setActiveDomainKey(source.domainKey);
-    setSelectedModule('workflow');
-    appendSystemMessage(`파이프라인 "${copy.title}"이(가) 복사되었습니다.`);
+    try {
+      const duplicated = await duplicatePipelineApi(id, {
+        userId: auth?.user?.id ?? null,
+        title: `${source.title} (복사본)`,
+      });
+      const copy = mapPipelineRecordToUi(duplicated.pipeline);
+      setUserPipelines((prev) => [...prev, copy]);
+      setActiveUserPipelineId(copy.id);
+      setActivePipelineId(copy.id);
+      setActiveDomainKey(copy.domainKey);
+      setSelectedModule('workflow');
+      appendSystemMessage(`파이프라인 "${copy.title}"이(가) 복사되었습니다.`);
+    } catch (error) {
+      appendSystemMessage(`파이프라인 복제 실패: ${error?.message || '오류가 발생했습니다.'}`);
+    }
   };
 
   const deleteUserPipeline = (id) => {
@@ -621,22 +692,33 @@ function App() {
     setIsDeleteModalOpen(true);
 };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!pipelineToDelete) return;
-    
-    const id = pipelineToDelete.id;
-    setUserPipelines((prev) => prev.filter((p) => p.id !== id));
-    
-    if (activeUserPipelineId === id) setActiveUserPipelineId(null);
-    if (activePipelineId === id) {
+    try {
+      const id = pipelineToDelete.id;
+      await deletePipelineApi(id);
+      setUserPipelines((prev) => prev.filter((p) => p.id !== id));
+
+      if (activeUserPipelineId === id) setActiveUserPipelineId(null);
+      if (activePipelineId === id) {
         setActivePipelineId(null);
         setActiveDomainKey(null);
+      }
+
+      appendSystemMessage(`"${pipelineToDelete.title}" 파이프라인이 삭제되었습니다.`);
+      setIsDeleteModalOpen(false);
+      setPipelineToDelete(null);
+    } catch (error) {
+      if (isApiError(error) && error.status === 404) {
+        appendSystemMessage('이미 삭제된 파이프라인입니다. 목록을 동기화합니다.');
+        await reloadUserPipelines();
+        setIsDeleteModalOpen(false);
+        setPipelineToDelete(null);
+        return;
+      }
+      appendSystemMessage('파이프라인 삭제에 실패했습니다. 다시 시도해주세요.');
     }
-    
-    appendSystemMessage(`"${pipelineToDelete.title}" 파이프라인이 삭제되었습니다.`);
-    setIsDeleteModalOpen(false);
-    setPipelineToDelete(null);
-};
+  };
 
   const addModuleToUserPipeline = (moduleId) => {
     if (!activeUserPipelineId) return;
@@ -769,13 +851,13 @@ function App() {
 
   const resolveDomainMetaForModule = (def) => {
     if (def.domainKey) {
-      const pl = PIPELINES.find((p) => p.domainKey === def.domainKey);
+      const pl = templatePipelines.find((p) => p.domainKey === def.domainKey);
       return {
         domainKey: def.domainKey,
         domainLabel: pl?.domainLabel ?? '의료',
       };
     }
-    const containing = PIPELINES.find((p) => p.moduleIds.includes(def.id));
+    const containing = templatePipelines.find((p) => p.moduleIds.includes(def.id));
     if (containing) {
       return { domainKey: containing.domainKey, domainLabel: containing.domainLabel };
     }
@@ -1128,7 +1210,7 @@ function App() {
         <main className="workspace-area">
           <Workspace
             modules={ALL_MODULE_CATALOG}
-            pipelines={PIPELINES}
+            pipelines={templatePipelines}
             userPipelines={userPipelines}
             activePipelineId={activePipelineId}
             onSelectPipeline={handleSelectPipeline}
