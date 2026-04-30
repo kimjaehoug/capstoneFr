@@ -4,6 +4,7 @@ import Workspace from './components/Workspace';
 import ChatPanel from './components/ChatPanel';
 import LoginPage from './components/LoginPage';
 import PipelineHub from './modules/PipelineHub';
+import WorkspaceContextBar from './components/WorkspaceContextBar';
 import { PIPELINES } from './data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
@@ -291,6 +292,8 @@ function App() {
   const [moduleSidebarFocus, setModuleSidebarFocus] = useState('workflow');
   const [activePipelineId, setActivePipelineId] = useState(null);
   const [activeUserPipelineId, setActiveUserPipelineId] = useState(null);
+  const [activeDataSourceId, setActiveDataSourceId] = useState(null);
+  const [workspaceStep, setWorkspaceStep] = useState('pipeline');
   const [templatePipelines, setTemplatePipelines] = useState(PIPELINES);
   const [userPipelines, setUserPipelines] = useState(() => loadUserPipelines());
   const [userPipelinesAuthRequired, setUserPipelinesAuthRequired] = useState(false);
@@ -573,10 +576,23 @@ function App() {
     () => userPipelines.find((p) => p.id === activeUserPipelineId) ?? null,
     [userPipelines, activeUserPipelineId]
   );
+  const activeDataSource = useMemo(
+    () => dataSources.find((d) => d.id === activeDataSourceId) ?? null,
+    [dataSources, activeDataSourceId],
+  );
+  const activePipeline = useMemo(
+    () => [...templatePipelines, ...userPipelines].find((p) => p.id === activePipelineId) ?? null,
+    [templatePipelines, userPipelines, activePipelineId],
+  );
+  const activeModule = useMemo(
+    () => ALL_MODULE_CATALOG.find((m) => m.id === selectedModule) ?? null,
+    [selectedModule],
+  );
 
   const handleSelectPipeline = (id) => {
     setSelectedModule('workflow');
     setMainHubSection('pipeline');
+    setWorkspaceStep('pipeline');
     setActivePipelineId(id);
     setActiveUserPipelineId(userPipelines.some((p) => p.id === id) ? id : null);
     const resolved = [...templatePipelines, ...userPipelines].find((p) => p.id === id);
@@ -705,14 +721,17 @@ function App() {
     }
   };
 
-  const connectDataToPipeline = (pipelineId) => {
+  const connectDataToPipeline = (pipelineId, dataSourceId) => {
+    setActiveDataSourceId(dataSourceId ?? null);
     handleSelectPipeline(pipelineId);
     setMainHubSection('pipeline');
+    setWorkspaceStep('pipeline');
   };
 
   /** 모듈/워크플로 전환만 담당. 파이프라인 선택은 handleSelectPipeline·onClearPipeline에서만 바꿈 */
   const handleSelectModule = (moduleId) => {
     setSelectedModule(moduleId);
+    setWorkspaceStep(moduleId === 'results' ? 'result' : moduleId === 'workflow' ? 'pipeline' : 'module');
   };
 
   useEffect(() => {
@@ -732,6 +751,37 @@ function App() {
       }
       return prev;
     });
+  };
+
+  const handleWorkspaceStepChange = (step) => {
+    setWorkspaceStep(step);
+    if (step === 'data') {
+      setSelectedModule('workflow');
+      setMainHubSection('data');
+      return;
+    }
+    if (step === 'pipeline') {
+      setSelectedModule('workflow');
+      setMainHubSection(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
+      return;
+    }
+    if (step === 'result') {
+      setSelectedModule('results');
+      return;
+    }
+    if (selectedModule === 'workflow') {
+      const fallback = activePipeline?.moduleIds?.[0] || 'diagnosis';
+      setSelectedModule(fallback);
+    }
+  };
+
+  const clearWorkspaceContext = () => {
+    setActiveDataSourceId(null);
+    setActivePipelineId(null);
+    setActiveUserPipelineId(null);
+    setSelectedModule('workflow');
+    setMainHubSection('pipeline');
+    setWorkspaceStep('pipeline');
   };
 
   const appendChat = (text) => {
@@ -1399,6 +1449,33 @@ function App() {
   const isSharedHubRoute = currentPath.startsWith('/hub/shared');
   const isOpsConsoleRoute = currentPath.startsWith('/console/ops');
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isWorkspaceRoute) return;
+    const params = new URLSearchParams(window.location.search);
+    const step = params.get('step');
+    if (step && ['data', 'pipeline', 'module', 'result'].includes(step)) {
+      setWorkspaceStep(step);
+    }
+    const dataSourceId = params.get('activeDataSourceId');
+    const pipelineId = params.get('activePipelineId');
+    const moduleId = params.get('activeModuleId');
+    if (dataSourceId) setActiveDataSourceId(dataSourceId);
+    if (pipelineId) setActivePipelineId(pipelineId);
+    if (moduleId) setSelectedModule(moduleId);
+  }, [isWorkspaceRoute]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isWorkspaceRoute) return;
+    const params = new URLSearchParams();
+    params.set('step', workspaceStep);
+    if (activeDataSourceId) params.set('activeDataSourceId', activeDataSourceId);
+    if (activePipelineId) params.set('activePipelineId', activePipelineId);
+    if (selectedModule && selectedModule !== 'workflow') params.set('activeModuleId', selectedModule);
+    const query = params.toString();
+    const next = query ? `${currentPath}?${query}` : currentPath;
+    window.history.replaceState({}, '', next);
+  }, [isWorkspaceRoute, workspaceStep, activeDataSourceId, activePipelineId, selectedModule, currentPath]);
+
   if (currentPath === '/login') {
     return (
       <div className="app-root">
@@ -1436,6 +1513,8 @@ function App() {
             mainHubSection={mainHubSection}
             onMainHubSectionChange={(id) => {
               setMainHubSection(id);
+              if (id === 'data') setWorkspaceStep('data');
+              else setWorkspaceStep('pipeline');
               setActivePipelineId(null);
               setActiveUserPipelineId(null);
               setActiveDomainKey(null);
@@ -1455,76 +1534,90 @@ function App() {
 
         <main className="workspace-area">
           {isWorkspaceRoute ? (
-            <Workspace
-              modules={ALL_MODULE_CATALOG}
-              pipelines={templatePipelines}
-              userPipelines={userPipelines}
-              activePipelineId={activePipelineId}
-              onSelectPipeline={handleSelectPipeline}
-              onClearPipeline={() => {
-                setActivePipelineId(null);
-                setActiveUserPipelineId(null);
-                setActiveDomainKey(null);
-              }}
-              onCopyTemplateToUser={copyTemplateToUser}
-              onDuplicateUserPipeline={duplicateUserPipeline}
-              onDeleteUserPipeline={deleteUserPipeline}
-              selectedModule={selectedModule}
-              onSelectModule={handleSelectModule}
-              moduleStatus={moduleStatus}
-              moduleMemory={moduleMemory}
-              onSaveCurrentModule={saveCurrentModule}
-              diagnosisResult={diagnosisResult}
-              onDiagnosisChange={setDiagnosisResult}
-              domainForm={domainForm}
-              onDomainChange={handleDomainChange}
-              onAutoDraftDomain={handleAutoDraftDomain}
-              searchDomainContext={searchDomainContext}
-              usingSavedDomain={usingSavedDomain}
-              selectedDatasets={selectedDatasets}
-              onToggleDataset={toggleDatasetSelection}
-              matchingDatasets={matchingDatasets}
-              usingSavedSearch={usingSavedSearch}
-              matchingReview={matchingReview}
-              onMatchingReviewChange={setMatchingReview}
-              synthesisOptions={synthesisOptions}
-              matchingContext={savedMatching}
-              onSetSynthesisMode={setSynthesisMode}
-              onToggleSynthesisConstraint={toggleSynthesisConstraint}
-              onRunSynthesis={runSynthesis}
-              resultFocus={resultFocus}
-              onResultFocusChange={setResultFocus}
-              synthesisContext={savedSynthesis}
-              domainModuleNotes={domainModuleNotes}
-              onDomainModuleNoteChange={(moduleId, value) =>
-                setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value }))
-              }
-              mainHubSection={mainHubSection}
-              onMainHubSectionChange={setMainHubSection}
-              dataSources={dataSources}
-              dataSourcesAuthRequired={dataSourcesAuthRequired}
-              dataSourcesAuthMessage={dataSourcesAuthMessage}
-              onAddDataSource={addDataSource}
-              onUpdateDataSource={updateDataSource}
-              onDeleteDataSource={deleteDataSource}
-              onConnectDataToPipeline={connectDataToPipeline}
-              onCreatePipelineAndLinkData={createPipelineAndLinkData}
-              onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
-              onGoLogin={() => moveToPath('/login')}
-              isAuthenticated={isAuthenticated}
-              userPipelinesAuthRequired={userPipelinesAuthRequired}
-              userPipelinesAuthMessage={userPipelinesAuthMessage}
-              onUpdateUserPipeline={updateUserPipeline}
-              onAddModuleToUserPipeline={addModuleToUserPipeline}
-              onMoveModuleInUserPipeline={moveModuleInUserPipeline}
-              onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
-              onSetUserPipelineModulePosition={setUserPipelineModulePosition}
-              onConnectModuleAfterInUserPipeline={connectModuleAfterInUserPipeline}
-              onDisconnectEdgeAfterInUserPipeline={disconnectEdgeAfterInUserPipeline}
-              activeUserPipelineId={activeUserPipelineId}
-              activeUserPipeline={activeUserPipeline}
-              onStartPipelineFromModule={startPipelineFromModule}
-            />
+            <>
+              <WorkspaceContextBar
+                workspaceStep={workspaceStep}
+                activeDataSource={activeDataSource}
+                activePipeline={activePipeline}
+                activeModule={activeModule}
+                onStepChange={handleWorkspaceStepChange}
+                onClearContext={clearWorkspaceContext}
+              />
+              <Workspace
+                modules={ALL_MODULE_CATALOG}
+                pipelines={templatePipelines}
+                userPipelines={userPipelines}
+                activePipelineId={activePipelineId}
+                onSelectPipeline={handleSelectPipeline}
+                onClearPipeline={() => {
+                  setActivePipelineId(null);
+                  setActiveUserPipelineId(null);
+                  setActiveDomainKey(null);
+                }}
+                onCopyTemplateToUser={copyTemplateToUser}
+                onDuplicateUserPipeline={duplicateUserPipeline}
+                onDeleteUserPipeline={deleteUserPipeline}
+                selectedModule={selectedModule}
+                onSelectModule={handleSelectModule}
+                moduleStatus={moduleStatus}
+                moduleMemory={moduleMemory}
+                onSaveCurrentModule={saveCurrentModule}
+                diagnosisResult={diagnosisResult}
+                onDiagnosisChange={setDiagnosisResult}
+                domainForm={domainForm}
+                onDomainChange={handleDomainChange}
+                onAutoDraftDomain={handleAutoDraftDomain}
+                searchDomainContext={searchDomainContext}
+                usingSavedDomain={usingSavedDomain}
+                selectedDatasets={selectedDatasets}
+                onToggleDataset={toggleDatasetSelection}
+                matchingDatasets={matchingDatasets}
+                usingSavedSearch={usingSavedSearch}
+                matchingReview={matchingReview}
+                onMatchingReviewChange={setMatchingReview}
+                synthesisOptions={synthesisOptions}
+                matchingContext={savedMatching}
+                onSetSynthesisMode={setSynthesisMode}
+                onToggleSynthesisConstraint={toggleSynthesisConstraint}
+                onRunSynthesis={runSynthesis}
+                resultFocus={resultFocus}
+                onResultFocusChange={setResultFocus}
+                synthesisContext={savedSynthesis}
+                domainModuleNotes={domainModuleNotes}
+                onDomainModuleNoteChange={(moduleId, value) =>
+                  setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value }))
+                }
+                mainHubSection={mainHubSection}
+                onMainHubSectionChange={(sectionId) => {
+                  setMainHubSection(sectionId);
+                  if (sectionId === 'data') setWorkspaceStep('data');
+                  else setWorkspaceStep('pipeline');
+                }}
+                dataSources={dataSources}
+                dataSourcesAuthRequired={dataSourcesAuthRequired}
+                dataSourcesAuthMessage={dataSourcesAuthMessage}
+                onAddDataSource={addDataSource}
+                onUpdateDataSource={updateDataSource}
+                onDeleteDataSource={deleteDataSource}
+                onConnectDataToPipeline={connectDataToPipeline}
+                onCreatePipelineAndLinkData={createPipelineAndLinkData}
+                onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
+                onGoLogin={() => moveToPath('/login')}
+                isAuthenticated={isAuthenticated}
+                userPipelinesAuthRequired={userPipelinesAuthRequired}
+                userPipelinesAuthMessage={userPipelinesAuthMessage}
+                onUpdateUserPipeline={updateUserPipeline}
+                onAddModuleToUserPipeline={addModuleToUserPipeline}
+                onMoveModuleInUserPipeline={moveModuleInUserPipeline}
+                onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
+                onSetUserPipelineModulePosition={setUserPipelineModulePosition}
+                onConnectModuleAfterInUserPipeline={connectModuleAfterInUserPipeline}
+                onDisconnectEdgeAfterInUserPipeline={disconnectEdgeAfterInUserPipeline}
+                activeUserPipelineId={activeUserPipelineId}
+                activeUserPipeline={activeUserPipeline}
+                onStartPipelineFromModule={startPipelineFromModule}
+              />
+            </>
           ) : null}
           {isSharedHubRoute ? (
             <PipelineHub

@@ -282,6 +282,42 @@ button.active {
   gap: 6px;
 }
 
+.workspace-context-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.workspace-context-steps {
+  display: flex;
+  gap: 6px;
+}
+
+.workspace-context-step {
+  text-transform: uppercase;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.workspace-context-step.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.workspace-context-current {
+  display: flex;
+  gap: 12px;
+  color: var(--text-sub);
+  font-size: 13px;
+}
+
 .app-topbar {
   height: 62px;
   display: flex;

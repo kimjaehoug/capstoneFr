@@ -580,7 +580,7 @@ function MainHubDataView({
                       className="btn-pipeline-link"
                       disabled={!r.linkedPipelineId}
                       title={r.linkedPipelineId ? '이 파이프라인 화면으로 이동' : '연결된 파이프라인이 없습니다'}
-                      onClick={() => r.linkedPipelineId && onConnectToPipeline(r.linkedPipelineId)}
+                      onClick={() => r.linkedPipelineId && onConnectToPipeline(r.linkedPipelineId, r.id)}
                     >
                       파이프라인 연결
                     </button>
