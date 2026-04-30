@@ -1,6 +1,6 @@
 import StepExecutionCard from './StepExecutionCard';
-import { EXECUTION_DUMMY_BY_TASK } from '../data/executionDummyModules';
-import { DOMAIN_MODULES } from '../data/domainModules';
+import { EXECUTION_DUMMY_BY_TASK } from '../../data/executionDummyModules';
+import { DOMAIN_MODULES } from '../../data/domainModules';
 
 function buildAddonSubTasksByCore() {
   return DOMAIN_MODULES.reduce((acc, moduleDef) => {

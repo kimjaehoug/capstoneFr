@@ -1,4 +1,4 @@
-import LoginPage from '../../components/LoginPage';
+import LoginPage from '../../components/auth/LoginPage';
 import { WORKSPACE_ROUTE } from '../../shared/constants/routes';
 
 function LoginPageContainer({ onMoveToPath, onLoginSuccess }) {

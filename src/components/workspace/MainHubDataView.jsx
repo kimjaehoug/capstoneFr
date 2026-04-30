@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { suggestPipelineFromDataset } from '../utils/pipelineSuggest';
+import { suggestPipelineFromDataset } from '../../utils/pipelineSuggest';
 
 const MODALITY_OPTIONS = ['테이블', '시계열', '텍스트·문서', '이미지', '로그·이벤트', '혼합', '기타'];
 

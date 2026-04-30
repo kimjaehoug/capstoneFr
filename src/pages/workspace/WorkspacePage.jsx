@@ -1,6 +1,6 @@
-import Workspace from '../../components/Workspace';
-import WorkspaceContextBar from '../../components/WorkspaceContextBar';
-import WorkspaceStatusPanel from '../../components/WorkspaceStatusPanel';
+import Workspace from '../../components/workspace/Workspace';
+import WorkspaceContextBar from '../../components/workspace/WorkspaceContextBar';
+import WorkspaceStatusPanel from '../../components/workspace/WorkspaceStatusPanel';
 
 function WorkspacePage({
   conflictInfo,

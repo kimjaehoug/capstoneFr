@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../data/domainModules';
+import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../../data/domainModules';
 import PipelineStageAddonColumn from './PipelineStageAddonColumn';
 
 /**

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../data/domainModules';
-import { LOGIN_ROUTE } from '../shared/constants/routes';
+import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../../data/domainModules';
+import { LOGIN_ROUTE } from '../../shared/constants/routes';
 import './Sidebar.css';
 
 function CollapsibleSection({ id, title, count, open, onToggle, children }) {

@@ -1,15 +1,15 @@
-import { useState } from 'react';
-import PipelineHub from '../modules/PipelineHub';
+import { useEffect, useState } from 'react';
+import PipelineHub from '../../modules/PipelineHub';
 import MainHubDataView from './MainHubDataView';
 import MainHubModuleView from './MainHubModuleView';
-import DiagnosisModule from '../modules/DiagnosisModule';
-import DomainModule from '../modules/DomainModule';
-import SearchModule from '../modules/SearchModule';
-import MatchingModule from '../modules/MatchingModule';
-import SynthesisModule from '../modules/SynthesisModule';
-import ResultsModule from '../modules/ResultsModule';
-import SpecialtyModule from '../modules/SpecialtyModule';
-import { DOMAIN_MODULE_IDS } from '../data/domainModules';
+import DiagnosisModule from '../../modules/DiagnosisModule';
+import DomainModule from '../../modules/DomainModule';
+import SearchModule from '../../modules/SearchModule';
+import MatchingModule from '../../modules/MatchingModule';
+import SynthesisModule from '../../modules/SynthesisModule';
+import ResultsModule from '../../modules/ResultsModule';
+import SpecialtyModule from '../../modules/SpecialtyModule';
+import { DOMAIN_MODULE_IDS } from '../../data/domainModules';
 import PipelineComposerBar from './PipelineComposerBar';
 import StepExecutionBoard from './StepExecutionBoard';
 
@@ -43,6 +43,7 @@ function Workspace({
   activePipelineId,
   onSelectPipeline,
   onSelectPipelineForExecution,
+  needsExecutionPipelineSelection = false,
   onSelectPipelineForReport,
   onClearPipeline,
   onCopyTemplateToUser,
@@ -114,6 +115,7 @@ function Workspace({
   const displayModuleId =
     workspaceStep === 'pipeline' || workspaceStep === 'data' ? 'workflow' : selectedModule;
   const [isUpdatingPipelineId, setIsUpdatingPipelineId] = useState(null);
+  const [executionCandidateId, setExecutionCandidateId] = useState(null);
   const selectedModuleInfo = modules.find((item) => item.id === displayModuleId);
   const allHubPipelines = [...pipelines, ...userPipelines];
   const activePipeline = allHubPipelines.find((p) => p.id === activePipelineId);
@@ -158,6 +160,20 @@ function Workspace({
     status: taskRunStateById[task.id]?.status || 'idle',
     summary: taskRunStateById[task.id]?.summary || '',
   }));
+
+  const handleStartExecutionFromSelectedPipeline = () => {
+    if (!executionCandidateId) return;
+    (onSelectPipelineForExecution || onSelectPipeline)?.(executionCandidateId);
+  };
+
+  useEffect(() => {
+    if (!needsExecutionPipelineSelection) return;
+    if (!executionPipelineChoices.length) {
+      setExecutionCandidateId(null);
+      return;
+    }
+    setExecutionCandidateId((prev) => prev || executionPipelineChoices[0].id);
+  }, [needsExecutionPipelineSelection, executionPipelineChoices]);
 
 
   const renderPipelineHub = (tpls, usrs) => (
@@ -546,25 +562,40 @@ function Workspace({
               <h3>작업 단계 실행</h3>
               <p>단계별로 실행하고 검토한 뒤 승인하여 다음 단계로 진행하세요.</p>
             </header>
-            {!activePipeline && !activeUserPipeline ? (
+            {needsExecutionPipelineSelection || (!activePipeline && !activeUserPipeline) ? (
               <section className="step-board-empty">
                 <p>먼저 실행할 파이프라인을 선택해주세요.</p>
-                <div className="button-row">
-                  {executionPipelineChoices.length === 0 ? (
+                {executionPipelineChoices.length === 0 ? (
+                  <div className="button-row">
                     <span className="ops-module-candidate-empty">선택 가능한 파이프라인이 없습니다.</span>
-                  ) : (
-                    executionPipelineChoices.map((pl) => (
+                  </div>
+                ) : (
+                  <>
+                    <div className="step-picker-list">
+                      {executionPipelineChoices.map((pl) => (
+                        <label key={pl.id} className="step-picker-item">
+                          <input
+                            type="radio"
+                            name="executionPipeline"
+                            checked={executionCandidateId === pl.id}
+                            onChange={() => setExecutionCandidateId(pl.id)}
+                          />
+                          <span>{pl.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="button-row">
                       <button
-                        key={pl.id}
                         type="button"
-                        className="btn-secondary-inline"
-                        onClick={() => (onSelectPipelineForExecution || onSelectPipeline)(pl.id)}
+                        className="btn-primary-inline"
+                        disabled={!executionCandidateId}
+                        onClick={handleStartExecutionFromSelectedPipeline}
                       >
-                        {pl.title}
+                        선택한 파이프라인으로 실행 시작
                       </button>
-                    ))
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
               </section>
             ) : (
               <>

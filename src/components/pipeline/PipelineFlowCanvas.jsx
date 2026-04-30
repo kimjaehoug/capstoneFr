@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { mergeModuleLayout } from '../utils/pipelineLayout';
-import { normalizeConnectedAfter } from '../utils/pipelineConnections';
+import { mergeModuleLayout } from '../../utils/pipelineLayout';
+import { normalizeConnectedAfter } from '../../utils/pipelineConnections';
 
 const NODE_W = 280;
 const NODE_H = 112;

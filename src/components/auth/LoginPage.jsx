@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { loginWithCredentials, signupWithCredentials } from '../utils/auth';
+import { loginWithCredentials, signupWithCredentials } from '../../utils/auth';
 import './LoginPage.css';
 
 const AUTH_EXPIRED_NOTICE_KEY = 'stage-one-auth-expired-notice';

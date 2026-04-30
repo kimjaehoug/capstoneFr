@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../data/domainModules';
+import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../../data/domainModules';
 
 /** 기본 구조 모듈: 한 줄 요약 · 호버 시 같은 칸에서 상세 문구로 교체 */
 const CORE_MODULE_UI = {

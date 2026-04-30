@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import PipelineTimelineColumns from '../components/PipelineTimelineColumns';
+import PipelineTimelineColumns from '../components/pipeline/PipelineTimelineColumns';
 
 function PipelineHub({
   templatePipelines,

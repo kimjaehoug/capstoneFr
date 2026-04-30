@@ -525,6 +525,30 @@ button.active {
   color: #42586f;
 }
 
+.step-picker-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.step-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dbe4ef;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  font-size: 13px;
+  color: #21384f;
+}
+
+.step-picker-item input[type='radio'] {
+  width: auto;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
 .step-card {
   border: 1px solid #dbe4ef;
   border-radius: 12px;

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { DOMAIN_MODULES } from '../data/domainModules';
+import { DOMAIN_MODULES } from '../../data/domainModules';
 
 function candidatesForCore(coreModuleId) {
   return DOMAIN_MODULES.filter((m) => m.parentCoreModule === coreModuleId);

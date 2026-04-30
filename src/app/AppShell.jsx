@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Sidebar from '../components/Sidebar';
-import ChatPanel from '../components/ChatPanel';
+import Sidebar from '../components/layout/Sidebar';
+import ChatPanel from '../components/layout/ChatPanel';
 import LoginPageContainer from '../pages/login/LoginPageContainer';
 import HomePage from '../pages/home/HomePage';
 import SharedHubPage from '../pages/shared-hub/SharedHubPage';
@@ -326,6 +326,7 @@ function AppShell() {
   const [mode, setMode] = useState('beginner');
   const [taskRunStateById, setTaskRunStateById] = useState({});
   const [lastStatusMessage, setLastStatusMessage] = useState('');
+  const [needsExecutionPipelineSelection, setNeedsExecutionPipelineSelection] = useState(false);
   const [opsQuery, setOpsQuery] = useState('');
   const [opsType, setOpsType] = useState('all');
   const { auth, currentUserId, isAuthenticated, applyLoginSuccess, performLogout } = useAuthContext();
@@ -563,6 +564,7 @@ function AppShell() {
     setSelectedModule('workflow');
     setMainHubSection('pipeline');
     setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
+    setNeedsExecutionPipelineSelection(false);
   };
 
   const handleSelectPipelineForExecution = (id) => {
@@ -570,6 +572,7 @@ function AppShell() {
     const firstTask = resolved?.moduleIds?.find((moduleId) => moduleId !== 'workflow');
     setMainHubSection('pipeline');
     setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
+    setNeedsExecutionPipelineSelection(false);
     if (firstTask) setSelectedModule(firstTask);
     else setSelectedModule('workflow');
   };
@@ -615,40 +618,32 @@ function AppShell() {
       result: 'success',
     });
     if (step === WORKSPACE_STEP_DATA) {
+      setNeedsExecutionPipelineSelection(false);
       setWorkspaceStep(WORKSPACE_STEP_DATA);
       setSelectedModule('workflow');
       setMainHubSection('data');
       return;
     }
     if (step === WORKSPACE_STEP_PIPELINE) {
+      setNeedsExecutionPipelineSelection(false);
       setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
       setSelectedModule('workflow');
       setMainHubSection(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
       return;
     }
     if (step === WORKSPACE_STEP_EXECUTION) {
-      const coreExecutionModules = new Set(['diagnosis', 'domain', 'search', 'matching', 'synthesis', 'results']);
       setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
       setMainHubSection('pipeline');
       setLastStatusMessage('');
-      if (!activePipelineId && !activeUserPipelineId) {
-        const firstPipeline = userPipelines[0] || templatePipelines[0] || null;
-        if (!firstPipeline) {
-          setSelectedModule('workflow');
-          return;
-        }
-        selectPipelineContext(firstPipeline.id);
-        const firstTask = firstPipeline.moduleIds?.find((moduleId) => moduleId !== 'workflow');
-        setSelectedModule(firstTask || 'workflow');
-        return;
-      }
-      if (selectedModule === 'workflow' || !coreExecutionModules.has(selectedModule)) {
-        const fallback = activePipeline?.moduleIds?.[0] || 'diagnosis';
-        setSelectedModule(coreExecutionModules.has(fallback) ? fallback : 'diagnosis');
-      }
+      setNeedsExecutionPipelineSelection(true);
+      setActivePipelineId(null);
+      setActiveUserPipelineId(null);
+      setActiveDomainKey(null);
+      setSelectedModule('workflow');
       return;
     }
     if (step === WORKSPACE_STEP_REPORT) {
+      setNeedsExecutionPipelineSelection(false);
       setWorkspaceStep(WORKSPACE_STEP_REPORT);
       setMainHubSection('pipeline');
       if (!activePipelineId && !activeUserPipelineId) {
@@ -1082,8 +1077,11 @@ function AppShell() {
     [activeDomainKey]
   );
 
+  const isExecutionSelectionScreen =
+    workspaceStep === WORKSPACE_STEP_EXECUTION && needsExecutionPipelineSelection;
   const showModuleSidebar =
-    selectedModule !== 'workflow' || Boolean(activePipelineId) || Boolean(activeUserPipelineId);
+    !isExecutionSelectionScreen &&
+    (selectedModule !== 'workflow' || Boolean(activePipelineId) || Boolean(activeUserPipelineId));
 
   const handleLoginSuccess = (login) => {
     applyLoginSuccess(login);
@@ -1169,6 +1167,7 @@ function AppShell() {
     workspaceStep,
     onSelectPipeline: handleSelectPipeline,
     onSelectPipelineForExecution: handleSelectPipelineForExecution,
+    needsExecutionPipelineSelection,
     onSelectPipelineForReport: handleSelectPipelineForReport,
     onClearPipeline: () => {
       setActivePipelineId(null);
