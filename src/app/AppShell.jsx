@@ -1183,51 +1183,40 @@ function AppShell() {
 
   return (
     <div className="app-root">
-      <header className="workspace-top-nav">
-        <button type="button" className={`workspace-top-nav-btn ${isWorkspaceRoute ? 'active' : ''}`} onClick={() => moveToPath(WORKSPACE_ROUTE)}>
-          워크스페이스
-        </button>
-        <button type="button" className={`workspace-top-nav-btn ${isSharedHubRoute ? 'active' : ''}`} onClick={() => moveToPath(SHARED_HUB_ROUTE)}>
-          공유 허브
-        </button>
-        <button type="button" className={`workspace-top-nav-btn ${isOpsConsoleRoute ? 'active' : ''}`} onClick={() => moveToPath(OPS_CONSOLE_ROUTE)}>
-          운영 콘솔
-        </button>
-      </header>
-
       <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}${chatPanelCollapsed ? ' app-shell--chat-collapsed' : ''}`}>
-        {isWorkspaceRoute ? (
-          <Sidebar
-            auth={auth}
-            isAuthenticated={isAuthenticated}
-            moveToPath={moveToPath}
-            handleLogout={handleLogout}
-            handleGoHome={handleGoHome}
-            showModuleSidebar={showModuleSidebar}
-            workflowModule={MODULES[0]}
-            baseModules={MODULES.slice(1)}
-            domainModules={domainSidebarModules}
-            mainHubSection={mainHubSection}
-            onMainHubSectionChange={(id) => {
-              setMainHubSection(id);
-              if (id === WORKSPACE_STEP_DATA) setWorkspaceStep(WORKSPACE_STEP_DATA);
-              else setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
-              setActivePipelineId(null);
-              setActiveUserPipelineId(null);
-              setActiveDomainKey(null);
-            }}
-            moduleSidebarFocus={moduleSidebarFocus}
-            onModuleSidebarFocus={handleModuleSidebarFocus}
-            onOpenModuleSettings={handleSelectModule}
-            moduleStatus={moduleStatus}
-            activeUserPipeline={activeUserPipeline}
-            onClearUserPipeline={clearUserPipelineEdit}
-            onAddModuleToUserPipeline={addModuleToUserPipeline}
-            onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
-          />
-        ) : null}
+        <Sidebar
+          auth={auth}
+          isAuthenticated={isAuthenticated}
+          moveToPath={moveToPath}
+          handleLogout={handleLogout}
+          handleGoHome={handleGoHome}
+          isWorkspaceRoute={isWorkspaceRoute}
+          isSharedHubRoute={isSharedHubRoute}
+          isOpsConsoleRoute={isOpsConsoleRoute}
+          showModuleSidebar={isWorkspaceRoute && showModuleSidebar}
+          workflowModule={MODULES[0]}
+          baseModules={MODULES.slice(1)}
+          domainModules={domainSidebarModules}
+          mainHubSection={mainHubSection}
+          onMainHubSectionChange={(id) => {
+            setMainHubSection(id);
+            if (id === WORKSPACE_STEP_DATA) setWorkspaceStep(WORKSPACE_STEP_DATA);
+            else setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
+            setActivePipelineId(null);
+            setActiveUserPipelineId(null);
+            setActiveDomainKey(null);
+          }}
+          moduleSidebarFocus={moduleSidebarFocus}
+          onModuleSidebarFocus={handleModuleSidebarFocus}
+          onOpenModuleSettings={handleSelectModule}
+          moduleStatus={moduleStatus}
+          activeUserPipeline={activeUserPipeline}
+          onClearUserPipeline={clearUserPipelineEdit}
+          onAddModuleToUserPipeline={addModuleToUserPipeline}
+          onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
+        />
 
         <main className="workspace-area">
           {isWorkspaceRoute ? (

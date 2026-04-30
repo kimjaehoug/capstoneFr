@@ -69,7 +69,11 @@ function MainHubDataView({
     return [...templates, ...mine];
   }, [templatePipelines, userPipelines]);
 
-  const firstPipelineId = pipelineOptions[0]?.id ?? '';
+  const linkablePipelineOptions = useMemo(
+    () => pipelineOptions.filter((p) => p.kind === 'user'),
+    [pipelineOptions],
+  );
+  const firstPipelineId = linkablePipelineOptions[0]?.id ?? '';
   const firstTemplateId = templatePipelines[0]?.id ?? '';
 
   const resolvePipelineTitle = (pipelineId) => {
@@ -105,6 +109,7 @@ function MainHubDataView({
     setDataFormView('form');
     if (firstPipelineId) setLinkedPipelineId(firstPipelineId);
     if (firstTemplateId) setBaseTemplateId(firstTemplateId);
+    if (!firstPipelineId && firstTemplateId) setLinkMode('new');
   };
 
   const closeForm = () => {
@@ -201,7 +206,7 @@ function MainHubDataView({
         success = result !== false;
       } else {
         const pid = (linkedPipelineId || firstPipelineId || '').trim() || null;
-        if (!pid && pipelineOptions.length > 0) return;
+        if (!pid && linkablePipelineOptions.length > 0) return;
         const result = await onAddDataSource({
           name: n,
           source: source.trim() || '미지정',
@@ -396,14 +401,14 @@ function MainHubDataView({
               <select
                 value={linkedPipelineId || firstPipelineId || ''}
                 onChange={(e) => setLinkedPipelineId(e.target.value)}
-                required={pipelineOptions.length > 0}
+                required={linkablePipelineOptions.length > 0}
               >
-                {pipelineOptions.length === 0 ? (
-                  <option value="">파이프라인이 없습니다. 새로 만들기를 선택하세요.</option>
+                {linkablePipelineOptions.length === 0 ? (
+                  <option value="">내 파이프라인이 없습니다. 새로 만들기를 선택하세요.</option>
                 ) : (
-                  pipelineOptions.map((p) => (
+                  linkablePipelineOptions.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.title} {p.kind === 'user' ? '· 내 파이프라인' : '· 템플릿'}
+                      {p.title} · 내 파이프라인
                     </option>
                   ))
                 )}
@@ -466,7 +471,7 @@ function MainHubDataView({
           className="btn-primary-inline"
           disabled={
             !name.trim() ||
-            (linkMode === 'existing' && pipelineOptions.length === 0) ||
+            (linkMode === 'existing' && linkablePipelineOptions.length === 0) ||
             (linkMode === 'new' && !firstTemplateId)
           }
         >

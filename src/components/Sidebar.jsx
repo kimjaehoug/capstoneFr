@@ -18,6 +18,7 @@ function CollapsibleSection({ id, title, count, open, onToggle, children }) {
 
 function Sidebar({
   auth, isAuthenticated, moveToPath, handleLogout, handleGoHome,
+  isWorkspaceRoute, isSharedHubRoute, isOpsConsoleRoute,
   showModuleSidebar, workflowModule, baseModules, domainModules,
   mainHubSection, onMainHubSectionChange, moduleSidebarFocus,
   onModuleSidebarFocus, onOpenModuleSettings, moduleStatus,
@@ -84,6 +85,37 @@ function Sidebar({
               </div>
               <span className="logo-text-main">WWorkbench</span>
             </button>
+            <nav aria-label="주요 메뉴">
+              <ul className="nav-list">
+                <li className="nav-item-wrapper">
+                  <button
+                    type="button"
+                    className={`nav-link-btn ${isWorkspaceRoute ? 'active' : ''}`}
+                    onClick={() => moveToPath('/workspace')}
+                  >
+                    워크스페이스
+                  </button>
+                </li>
+                <li className="nav-item-wrapper">
+                  <button
+                    type="button"
+                    className={`nav-link-btn ${isSharedHubRoute ? 'active' : ''}`}
+                    onClick={() => moveToPath('/hub/shared')}
+                  >
+                    공유 허브
+                  </button>
+                </li>
+                <li className="nav-item-wrapper">
+                  <button
+                    type="button"
+                    className={`nav-link-btn ${isOpsConsoleRoute ? 'active' : ''}`}
+                    onClick={() => moveToPath('/console/ops')}
+                  >
+                    운영 콘솔
+                  </button>
+                </li>
+              </ul>
+            </nav>
           </div>
           <div className="header-right-group">
             {isAuthenticated ? (
