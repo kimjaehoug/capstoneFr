@@ -18,7 +18,22 @@ function matchesCategory(row, category) {
   return category.aliases.some((alias) => hay.includes(normalizeLower(alias)));
 }
 
-function OpsConsolePage({ opsQuery, onOpsQueryChange, opsType, onOpsTypeChange, onMoveWorkspace, opsRows }) {
+function OpsConsolePage({
+  opsQuery,
+  onOpsQueryChange,
+  opsType,
+  onOpsTypeChange,
+  onMoveWorkspace,
+  opsRows,
+  dataSources = [],
+  userPipelines = [],
+  onUpdateDataSource,
+  onDeleteDataSource,
+  onOpenDataSourceInWorkspace,
+  onUpdateUserPipeline,
+  onDeleteUserPipeline,
+  onOpenPipelineInWorkspace,
+}) {
   const categoryCards = useMemo(() => {
     return OPS_MODULE_CATEGORIES.map((category) => {
       const snapshots = opsRows.filter(
@@ -32,6 +47,35 @@ function OpsConsolePage({ opsQuery, onOpsQueryChange, opsType, onOpsTypeChange, 
       };
     });
   }, [opsRows]);
+
+  const handleEditDataSource = async (row) => {
+    if (!onUpdateDataSource) return;
+    const name = window.prompt('데이터 이름', row.name || '');
+    if (name == null) return;
+    const source = window.prompt('데이터 출처', row.source || '');
+    if (source == null) return;
+    const rowsLabel = window.prompt('행 수 라벨', row.rows || '');
+    if (rowsLabel == null) return;
+    await onUpdateDataSource({
+      ...row,
+      name: name.trim() || row.name,
+      source: source.trim() || row.source,
+      rowsLabel: rowsLabel.trim() || row.rowsLabel || '-',
+    });
+  };
+
+  const handleEditPipeline = async (pipeline) => {
+    if (!onUpdateUserPipeline) return;
+    const title = window.prompt('파이프라인 이름', pipeline.title || '');
+    if (title == null) return;
+    const description = window.prompt('파이프라인 설명', pipeline.description || '');
+    if (description == null) return;
+    await onUpdateUserPipeline(pipeline.id, {
+      title: title.trim() || pipeline.title,
+      description: description.trim(),
+      clearAutoNamed: true,
+    });
+  };
 
   return (
     <section className="hub-page">
@@ -74,6 +118,98 @@ function OpsConsolePage({ opsQuery, onOpsQueryChange, opsType, onOpsTypeChange, 
             </div>
           </article>
         ))}
+      </section>
+
+      <section className="ops-management-grid" aria-label="내 데이터/파이프라인 관리">
+        <article className="card">
+          <h4>내 데이터 DB 관리</h4>
+          <p className="hub-hero-lead">운영 콘솔에서 데이터 이름/출처 수정 및 삭제를 바로 수행할 수 있습니다.</p>
+          <div className="main-hub-table-wrap">
+            <table className="main-hub-table">
+              <thead>
+                <tr>
+                  <th>이름</th>
+                  <th>출처</th>
+                  <th>행 수</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dataSources.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="main-hub-table-empty">
+                      등록된 데이터가 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  dataSources.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.name}</td>
+                      <td>{row.source}</td>
+                      <td>{row.rows}</td>
+                      <td className="ops-actions-cell">
+                        <button type="button" className="btn-secondary-inline" onClick={() => onOpenDataSourceInWorkspace?.(row.id)}>
+                          이동
+                        </button>
+                        <button type="button" className="btn-secondary-inline" onClick={() => handleEditDataSource(row)}>
+                          수정
+                        </button>
+                        <button type="button" className="btn-danger-inline" onClick={() => onDeleteDataSource?.(row.id)}>
+                          삭제
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article className="card">
+          <h4>내 파이프라인 DB 관리</h4>
+          <p className="hub-hero-lead">파이프라인 제목/설명을 수정하고 삭제할 수 있습니다.</p>
+          <div className="main-hub-table-wrap">
+            <table className="main-hub-table">
+              <thead>
+                <tr>
+                  <th>이름</th>
+                  <th>도메인</th>
+                  <th>모듈 수</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {userPipelines.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="main-hub-table-empty">
+                      생성된 파이프라인이 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  userPipelines.map((pipeline) => (
+                    <tr key={pipeline.id}>
+                      <td>{pipeline.title}</td>
+                      <td>{pipeline.domainLabel || '-'}</td>
+                      <td>{pipeline.moduleIds?.length ?? 0}</td>
+                      <td className="ops-actions-cell">
+                        <button type="button" className="btn-secondary-inline" onClick={() => onOpenPipelineInWorkspace?.(pipeline.id)}>
+                          이동
+                        </button>
+                        <button type="button" className="btn-secondary-inline" onClick={() => handleEditPipeline(pipeline)}>
+                          수정
+                        </button>
+                        <button type="button" className="btn-danger-inline" onClick={() => onDeleteUserPipeline?.(pipeline.id)}>
+                          삭제
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </article>
       </section>
 
       <div className="main-hub-table-wrap">

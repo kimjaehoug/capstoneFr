@@ -1119,6 +1119,19 @@ function AppShell() {
   const isSharedHubRoute = currentPath.startsWith(SHARED_HUB_ROUTE);
   const isOpsConsoleRoute = currentPath.startsWith(OPS_CONSOLE_ROUTE);
 
+  const handleOpenDataSourceInWorkspace = (dataSourceId) => {
+    setActiveDataSourceId(dataSourceId);
+    setSelectedModule('workflow');
+    setMainHubSection('data');
+    setWorkspaceStep(WORKSPACE_STEP_DATA);
+    moveToPath(WORKSPACE_ROUTE);
+  };
+
+  const handleOpenPipelineInWorkspace = (pipelineId) => {
+    handleSelectPipeline(pipelineId);
+    moveToPath(WORKSPACE_ROUTE);
+  };
+
   useEffect(() => {
     if (!isWorkspaceRoute) {
       wasWorkspaceRouteRef.current = false;
@@ -1333,6 +1346,14 @@ function AppShell() {
               onOpsTypeChange={setOpsType}
               onMoveWorkspace={() => moveToPath(WORKSPACE_ROUTE)}
               opsRows={opsRows}
+              dataSources={dataSources}
+              userPipelines={userPipelines}
+              onUpdateDataSource={updateDataSource}
+              onDeleteDataSource={deleteDataSource}
+              onOpenDataSourceInWorkspace={handleOpenDataSourceInWorkspace}
+              onUpdateUserPipeline={updateUserPipeline}
+              onDeleteUserPipeline={deleteUserPipeline}
+              onOpenPipelineInWorkspace={handleOpenPipelineInWorkspace}
             />
           ) : null}
         </main>
