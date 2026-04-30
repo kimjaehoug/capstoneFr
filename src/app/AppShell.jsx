@@ -758,7 +758,7 @@ function AppShell() {
     }
   };
 
-  const saveModuleSnapshotLocal = (moduleId, data, summary, savedAt) => {
+  function saveModuleSnapshotLocal(moduleId, data, summary, savedAt) {
     const now = savedAt || new Date().toISOString();
     setModuleMemory((prev) => ({
       ...prev,
@@ -777,7 +777,7 @@ function AppShell() {
       step: workspaceStep,
       result: 'success',
     });
-  };
+  }
 
   useEffect(() => {
     if (!activeUserPipelineId || selectedModule === 'workflow') return;
