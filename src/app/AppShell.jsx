@@ -566,6 +566,13 @@ function AppShell() {
     else setSelectedModule('workflow');
   };
 
+  const handleSelectPipelineForReport = (id) => {
+    selectPipelineContext(id);
+    setMainHubSection('pipeline');
+    setWorkspaceStep(WORKSPACE_STEP_REPORT);
+    setSelectedModule('results');
+  };
+
 
   /** 모듈/워크플로 전환만 담당. 파이프라인 선택은 handleSelectPipeline·onClearPipeline에서만 바꿈 */
   const handleSelectModule = (moduleId) => {
@@ -592,7 +599,6 @@ function AppShell() {
   };
 
   const handleWorkspaceStepChange = (step) => {
-    setWorkspaceStep(step);
     trackEvent('workspace_context_changed', {
       userId: currentUserId,
       pipelineId: activePipelineId,
@@ -601,33 +607,44 @@ function AppShell() {
       result: 'success',
     });
     if (step === WORKSPACE_STEP_DATA) {
-      setSelectedModuleWithStep('workflow');
-      setMainHubSectionWithStep('data');
+      setWorkspaceStep(WORKSPACE_STEP_DATA);
+      setSelectedModule('workflow');
+      setMainHubSection('data');
       return;
     }
     if (step === WORKSPACE_STEP_PIPELINE) {
-      setSelectedModuleWithStep('workflow');
-      setMainHubSectionWithStep(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
+      setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
+      setSelectedModule('workflow');
+      setMainHubSection(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
       return;
     }
     if (step === WORKSPACE_STEP_EXECUTION) {
+      setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
+      setMainHubSection('pipeline');
       if (!activePipelineId && !activeUserPipelineId) {
         setSelectedModule('workflow');
         return;
       }
       if (selectedModule === 'workflow') {
         const fallback = activePipeline?.moduleIds?.[0] || 'diagnosis';
-        setSelectedModuleWithStep(fallback);
+        setSelectedModule(fallback);
       }
       return;
     }
     if (step === WORKSPACE_STEP_REPORT) {
-      setSelectedModuleWithStep('results');
+      setWorkspaceStep(WORKSPACE_STEP_REPORT);
+      setMainHubSection('pipeline');
+      if (!activePipelineId && !activeUserPipelineId) {
+        setSelectedModule('workflow');
+        return;
+      }
+      setSelectedModule('results');
       return;
     }
+    setWorkspaceStep(step);
     if (selectedModule === 'workflow') {
       const fallback = activePipeline?.moduleIds?.[0] || 'diagnosis';
-      setSelectedModuleWithStep(fallback);
+      setSelectedModule(fallback);
     }
   };
 
@@ -1109,11 +1126,11 @@ function AppShell() {
     }
     if (!wasWorkspaceRouteRef.current) {
       setWorkspaceStep(WORKSPACE_STEP_DATA);
-      setMainHubSectionWithStep('data');
+      setMainHubSection('data');
       setSelectedModule('workflow');
     }
     wasWorkspaceRouteRef.current = true;
-  }, [isWorkspaceRoute, setMainHubSectionWithStep, setSelectedModule, setWorkspaceStep]);
+  }, [isWorkspaceRoute, setMainHubSection, setSelectedModule, setWorkspaceStep]);
   const workspaceProps = createWorkspaceProps({
     modules: ALL_MODULE_CATALOG,
     pipelines: templatePipelines,
@@ -1122,6 +1139,7 @@ function AppShell() {
     workspaceStep,
     onSelectPipeline: handleSelectPipeline,
     onSelectPipelineForExecution: handleSelectPipelineForExecution,
+    onSelectPipelineForReport: handleSelectPipelineForReport,
     onClearPipeline: () => {
       setActivePipelineId(null);
       setActiveUserPipelineId(null);
@@ -1159,7 +1177,12 @@ function AppShell() {
     domainModuleNotes,
     onDomainModuleNoteChange: (moduleId, value) => setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value })),
     mainHubSection,
-    onMainHubSectionChange: setMainHubSectionWithStep,
+    onMainHubSectionChange: (sectionId) => {
+      setMainHubSection(sectionId);
+      if (sectionId === WORKSPACE_STEP_DATA) setWorkspaceStep(WORKSPACE_STEP_DATA);
+      else setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
+      setSelectedModule('workflow');
+    },
     dataSources,
     dataSourcesAuthRequired,
     dataSourcesAuthMessage,

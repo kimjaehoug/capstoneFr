@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import PipelineHub from '../modules/PipelineHub';
 import MainHubDataView from './MainHubDataView';
 import MainHubModuleView from './MainHubModuleView';
@@ -27,6 +28,7 @@ function Workspace({
   activePipelineId,
   onSelectPipeline,
   onSelectPipelineForExecution,
+  onSelectPipelineForReport,
   onClearPipeline,
   onCopyTemplateToUser,
   onDuplicateUserPipeline,
@@ -94,14 +96,17 @@ function Workspace({
   onApproveNextTask,
   onSkipTask,
 }) {
-  const selectedModuleInfo = modules.find((item) => item.id === selectedModule);
+  const displayModuleId =
+    workspaceStep === 'pipeline' || workspaceStep === 'data' ? 'workflow' : selectedModule;
+  const [isUpdatingPipelineId, setIsUpdatingPipelineId] = useState(null);
+  const selectedModuleInfo = modules.find((item) => item.id === displayModuleId);
   const allHubPipelines = [...pipelines, ...userPipelines];
   const activePipeline = allHubPipelines.find((p) => p.id === activePipelineId);
-  const isMainHubRoot = selectedModule === 'workflow' && !activePipeline;
-  const currentStatus = moduleStatus[selectedModule];
+  const isMainHubRoot = displayModuleId === 'workflow' && !activePipeline;
+  const currentStatus = moduleStatus[displayModuleId];
   const inputModules = selectedModuleInfo?.pipelineFrom || [];
-  const isSpecialtyModule = DOMAIN_MODULE_IDS.includes(selectedModule);
-  const isSaveableModule = selectedModule !== 'workflow';
+  const isSpecialtyModule = DOMAIN_MODULE_IDS.includes(displayModuleId);
+  const isSaveableModule = displayModuleId !== 'workflow';
   /** 파이프라인을 연 상태가 아니라 '모듈 조회/관리'에서만 모듈을 연 경우 */
   const showHubModulePipelineCta =
     mainHubSection === 'modules' &&
@@ -110,22 +115,30 @@ function Workspace({
     isSaveableModule;
 
   const headerTitle =
-    selectedModule === 'workflow' && activePipeline ? activePipeline.title : selectedModuleInfo?.label;
+    displayModuleId === 'workflow' && activePipeline ? activePipeline.title : selectedModuleInfo?.label;
   const headerDescription =
-    selectedModule === 'workflow' && activePipeline
+    displayModuleId === 'workflow' && activePipeline
       ? activePipeline.description
       : selectedModuleInfo?.description;
-  const showWorkspaceHeader = !isMainHubRoot && !(selectedModule === 'workflow' && activePipeline);
+  const showWorkspaceHeader = !isMainHubRoot && !(displayModuleId === 'workflow' && activePipeline);
   const isStepExecutionView = workspaceStep === 'execution';
+  const isReportView = workspaceStep === 'report';
   const executionTasks = (activeUserPipeline?.moduleIds || activePipeline?.moduleIds || [])
     .filter((id) => id !== 'workflow')
     .map((id) => modules.find((m) => m.id === id))
     .filter(Boolean);
 
   const executionPipelineChoices = [...userPipelines, ...pipelines];
+  const reportPipelineChoices = [...userPipelines, ...pipelines];
+  const reportTaskSummary = executionTasks.map((task) => ({
+    id: task.id,
+    label: task.label,
+    status: taskRunStateById[task.id]?.status || 'idle',
+    summary: taskRunStateById[task.id]?.summary || '',
+  }));
 
-  const showModuleBack = !isMainHubRoot && selectedModule !== 'workflow';
-  const showPipelineHubBack = selectedModule === 'workflow' && Boolean(activePipeline);
+  const showModuleBack = !isMainHubRoot && displayModuleId !== 'workflow';
+  const showPipelineHubBack = displayModuleId === 'workflow' && Boolean(activePipeline);
   const showMainHubSectionBack =
     isMainHubRoot && mainHubSection !== 'pipeline' && typeof onMainHubSectionChange === 'function';
 
@@ -158,6 +171,33 @@ function Workspace({
     const recommendedTemplates = pipelines.slice(0, 3);
     const recentUserPipelines = userPipelines.slice(-3).reverse();
 
+    const handleQuickEditPipeline = async (pipeline) => {
+      if (!onUpdateUserPipeline) return;
+      const nextTitle = window.prompt('파이프라인 이름을 입력하세요.', pipeline.title);
+      if (nextTitle == null) return;
+      const trimmedTitle = nextTitle.trim();
+      if (!trimmedTitle) return;
+      const nextDesc = window.prompt('파이프라인 설명을 입력하세요.', pipeline.description || '');
+      if (nextDesc == null) return;
+      setIsUpdatingPipelineId(pipeline.id);
+      try {
+        await onUpdateUserPipeline(pipeline.id, {
+          title: trimmedTitle,
+          description: nextDesc.trim(),
+          clearAutoNamed: true,
+        });
+      } finally {
+        setIsUpdatingPipelineId(null);
+      }
+    };
+
+    const handleQuickDeletePipeline = (pipeline) => {
+      if (!onDeleteUserPipeline) return;
+      const confirmed = window.confirm(`"${pipeline.title}" 파이프라인을 삭제할까요?`);
+      if (!confirmed) return;
+      onDeleteUserPipeline(pipeline.id);
+    };
+
     return (
       <section className="pipeline-compose-landing">
         <div className="pipeline-compose-section">
@@ -186,11 +226,26 @@ function Workspace({
             {recentUserPipelines.length === 0 ? (
               <p>아직 만든 파이프라인이 없습니다.</p>
             ) : (
-              <div className="button-row">
+              <div className="pipeline-compose-mine-list">
                 {recentUserPipelines.map((pl) => (
-                  <button key={pl.id} type="button" className="btn-secondary-inline" onClick={() => onSelectPipeline(pl.id)}>
-                    {pl.title}
-                  </button>
+                  <div key={pl.id} className="pipeline-compose-mine-item">
+                    <button type="button" className="btn-secondary-inline" onClick={() => onSelectPipeline(pl.id)}>
+                      {pl.title}
+                    </button>
+                    <div className="pipeline-compose-mine-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary-inline"
+                        disabled={isUpdatingPipelineId === pl.id}
+                        onClick={() => handleQuickEditPipeline(pl)}
+                      >
+                        수정
+                      </button>
+                      <button type="button" className="btn-danger-inline" onClick={() => handleQuickDeletePipeline(pl)}>
+                        삭제
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -214,32 +269,31 @@ function Workspace({
   };
 
   let content = null;
-  if (selectedModule === 'workflow') {
-    if (isMainHubRoot) {
-      if (mainHubSection === 'data') {
-        content = (
-          <MainHubDataView
-            dataSources={dataSources}
-            templatePipelines={pipelines}
-            userPipelines={userPipelines}
-            onAddDataSource={onAddDataSource}
-            onUpdateDataSource={onUpdateDataSource}
-            onDeleteDataSource={onDeleteDataSource}
-            onConnectToPipeline={onConnectDataToPipeline}
-            onCreatePipelineAndLinkData={onCreatePipelineAndLinkData}
-            onRequireLoginForDataFormDraft={onRequireLoginForDataFormDraft}
-            isAuthenticated={isAuthenticated}
-            authRequired={dataSourcesAuthRequired}
-            authMessage={dataSourcesAuthMessage}
-            onLoginRequired={onGoLogin}
-          />
-        );
-      } else if (mainHubSection === 'modules') {
+  if (displayModuleId === 'workflow') {
+    if (workspaceStep === 'data') {
+      content = (
+        <MainHubDataView
+          dataSources={dataSources}
+          templatePipelines={pipelines}
+          userPipelines={userPipelines}
+          onAddDataSource={onAddDataSource}
+          onUpdateDataSource={onUpdateDataSource}
+          onDeleteDataSource={onDeleteDataSource}
+          onConnectToPipeline={onConnectDataToPipeline}
+          onCreatePipelineAndLinkData={onCreatePipelineAndLinkData}
+          onRequireLoginForDataFormDraft={onRequireLoginForDataFormDraft}
+          isAuthenticated={isAuthenticated}
+          authRequired={dataSourcesAuthRequired}
+          authMessage={dataSourcesAuthMessage}
+          onLoginRequired={onGoLogin}
+        />
+      );
+    } else if (workspaceStep === 'pipeline') {
+      if (mainHubSection === 'modules') {
         content = (
           <MainHubModuleView modules={modules} moduleStatus={moduleStatus} onOpenModule={onSelectModule} />
         );
-      }
-      else if (mainHubSection === 'pipeline-templates') {
+      } else if (mainHubSection === 'pipeline-templates') {
         content = (
           <PipelineHub
             templatePipelines={pipelines}
@@ -264,11 +318,10 @@ function Workspace({
             userPipelinesAuthMessage={userPipelinesAuthMessage}
           />
         );
-      }
-      else if (mainHubSection === 'pipeline-mine') {
+      } else if (mainHubSection === 'pipeline-mine') {
         content = (
           <PipelineHub
-            templatePipelines={[]} 
+            templatePipelines={[]}
             userPipelines={userPipelines}
             modules={modules}
             moduleStatus={moduleStatus}
@@ -290,14 +343,18 @@ function Workspace({
             userPipelinesAuthMessage={userPipelinesAuthMessage}
           />
         );
+      } else if (activePipeline) {
+        content = renderPipelineHub(pipelines, userPipelines);
       } else {
         content = renderPipelineComposeLanding();
       }
+    } else if (isMainHubRoot) {
+      content = renderPipelineComposeLanding();
     } else {
       content = renderPipelineHub(pipelines, userPipelines);
     }
   }
-  if (selectedModule === 'diagnosis') {
+  if (displayModuleId === 'diagnosis') {
     content = (
       <DiagnosisModule
         diagnosisResult={diagnosisResult}
@@ -306,7 +363,7 @@ function Workspace({
       />
     );
   }
-  if (selectedModule === 'domain') {
+  if (displayModuleId === 'domain') {
     content = (
       <DomainModule
         domainForm={domainForm}
@@ -315,7 +372,7 @@ function Workspace({
       />
     );
   }
-  if (selectedModule === 'search') {
+  if (displayModuleId === 'search') {
     content = (
       <SearchModule
         domainContext={searchDomainContext}
@@ -325,7 +382,7 @@ function Workspace({
       />
     );
   }
-  if (selectedModule === 'matching') {
+  if (displayModuleId === 'matching') {
     content = (
       <MatchingModule
         selectedDatasets={matchingDatasets}
@@ -335,7 +392,7 @@ function Workspace({
       />
     );
   }
-  if (selectedModule === 'synthesis') {
+  if (displayModuleId === 'synthesis') {
     content = (
       <SynthesisModule
         synthesisOptions={synthesisOptions}
@@ -346,7 +403,7 @@ function Workspace({
       />
     );
   }
-  if (selectedModule === 'results') {
+  if (displayModuleId === 'results') {
     content = (
       <ResultsModule
         resultFocus={resultFocus}
@@ -359,8 +416,8 @@ function Workspace({
     content = (
       <SpecialtyModule
         moduleDef={selectedModuleInfo}
-        note={domainModuleNotes[selectedModule] ?? ''}
-        onNoteChange={(value) => onDomainModuleNoteChange(selectedModule, value)}
+        note={domainModuleNotes[displayModuleId] ?? ''}
+        onNoteChange={(value) => onDomainModuleNoteChange(displayModuleId, value)}
       />
     );
   }
@@ -415,12 +472,12 @@ function Workspace({
                   <button
                     type="button"
                     className="btn-primary-inline workspace-btn-pipeline-start"
-                    onClick={() => onStartPipelineFromModule(selectedModule)}
+                    onClick={() => onStartPipelineFromModule(displayModuleId)}
                   >
                     이 작업 단계에서 파이프라인 시작해보기
                   </button>
                 ) : (
-                  <button type="button" onClick={() => onSaveCurrentModule(selectedModule)} disabled={!isAuthenticated}>
+                  <button type="button" onClick={() => onSaveCurrentModule(displayModuleId)} disabled={!isAuthenticated}>
                     현재 작업 단계 저장
                   </button>
                 )}
@@ -429,7 +486,7 @@ function Workspace({
             )}
           </div>
 
-          {selectedModule !== 'workflow' && !isSpecialtyModule && (
+          {displayModuleId !== 'workflow' && !isSpecialtyModule && (
             <div className="pipeline-input-row">
               <span className="pipeline-label">입력 컨텍스트</span>
               {inputModules.length === 0 && <span className="pipeline-item neutral">필수 입력 없음</span>}
@@ -534,6 +591,50 @@ function Workspace({
                   onApproveNextTask={onApproveNextTask}
                   onSkipTask={onSkipTask}
                 />
+                {content}
+              </>
+            )}
+          </article>
+        ) : isReportView ? (
+          <article className="step-execution-card step-report-card">
+            <header className="step-execution-card-header">
+              <h3>결과 리포트</h3>
+              <p>운영 모니터링이 아닌, 선택한 파이프라인의 실행 결과와 의사결정 요약을 확인합니다.</p>
+            </header>
+            {!activePipeline && !activeUserPipeline ? (
+              <section className="step-board-empty">
+                <p>먼저 결과를 볼 파이프라인을 선택해주세요.</p>
+                <div className="button-row">
+                  {reportPipelineChoices.length === 0 ? (
+                    <span className="ops-module-candidate-empty">선택 가능한 파이프라인이 없습니다.</span>
+                  ) : (
+                    reportPipelineChoices.map((pl) => (
+                      <button
+                        key={pl.id}
+                        type="button"
+                        className="btn-secondary-inline"
+                        onClick={() => (onSelectPipelineForReport || onSelectPipeline)(pl.id)}
+                      >
+                        {pl.title}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </section>
+            ) : (
+              <>
+                <section className="step-report-summary">
+                  <h4>단계 실행 요약</h4>
+                  <div className="step-report-summary-list">
+                    {reportTaskSummary.map((item) => (
+                      <div key={item.id} className="step-report-summary-item">
+                        <strong>{item.label}</strong>
+                        <span className={`status-pill mini ${item.status}`}>{item.status}</span>
+                        <p>{item.summary || '요약 없음'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
                 {content}
               </>
             )}

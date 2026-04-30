@@ -439,6 +439,11 @@ button.active {
   padding: 14px;
 }
 
+.step-report-card {
+  border-color: #c8d6e8;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+}
+
 .step-execution-card-header h3 {
   margin: 0;
   font-size: 16px;
@@ -505,6 +510,44 @@ button.active {
   gap: 6px;
 }
 
+.step-report-summary {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d3dfee;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.step-report-summary h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.step-report-summary-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.step-report-summary-item {
+  border: 1px solid #e0e8f2;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.step-report-summary-item strong {
+  font-size: 13px;
+}
+
+.step-report-summary-item p {
+  margin: 0;
+  font-size: 12px;
+  color: #5a6978;
+}
+
 .status-pill.mini.running {
   background: #fff6d8;
   color: #8a5a00;
@@ -535,6 +578,9 @@ button.active {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .step-board-grid {
+    grid-template-columns: 1fr;
+  }
+  .step-report-summary-list {
     grid-template-columns: 1fr;
   }
   .pipeline-compose-grid {
@@ -2430,6 +2476,23 @@ button.active {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.pipeline-compose-mine-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pipeline-compose-mine-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.pipeline-compose-mine-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .pipeline-detail-title {
