@@ -38,6 +38,7 @@ function MainHubDataView({
   onConnectToPipeline,
   onCreatePipelineAndLinkData,
   onRequireLoginForDataFormDraft,
+  onDraftRestored,
   isAuthenticated,
   authRequired,
   authMessage,
@@ -247,6 +248,7 @@ function MainHubDataView({
       setRowUnit(draft.rowUnit || '');
       setSensitivityNote(draft.sensitivityNote || '');
       setDataFormView('form');
+      onDraftRestored?.(draft);
     } catch {
       // ignore parse error
     } finally {

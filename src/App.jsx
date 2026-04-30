@@ -1266,6 +1266,13 @@ function App() {
     }));
     const label = ALL_MODULE_CATALOG.find((m) => m.id === moduleId)?.label ?? moduleId;
     appendSystemMessage(`${label} 저장됨 (${formatSavedTime(now)})`);
+    trackEvent('module_snapshot_saved', {
+      userId: currentUserId,
+      pipelineId: activeUserPipelineId || activePipelineId,
+      moduleId,
+      step: workspaceStep,
+      result: 'success',
+    });
   };
 
   useEffect(() => {
@@ -1485,6 +1492,13 @@ function App() {
         if (draft) {
           restoreDraftCache(draft);
           appendSystemMessage('임시 보관된 작성 내용을 복원했습니다.');
+          trackEvent('draft_restored', {
+            userId: currentUserId,
+            pipelineId: activeUserPipelineId || activePipelineId,
+            moduleId: selectedModule,
+            step: workspaceStep,
+            result: 'success',
+          });
         }
         window.sessionStorage.removeItem(AUTH_REQUIRED_DRAFT_CACHE_KEY);
       }
@@ -1702,6 +1716,15 @@ function App() {
                 onConnectDataToPipeline={connectDataToPipeline}
                 onCreatePipelineAndLinkData={createPipelineAndLinkData}
                 onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
+                onDraftRestored={() =>
+                  trackEvent('draft_restored', {
+                    userId: currentUserId,
+                    pipelineId: activeUserPipelineId || activePipelineId,
+                    moduleId: selectedModule,
+                    step: workspaceStep,
+                    result: 'success',
+                  })
+                }
                 onGoLogin={() => moveToPath('/login')}
                 isAuthenticated={isAuthenticated}
                 userPipelinesAuthRequired={userPipelinesAuthRequired}
