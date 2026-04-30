@@ -5,6 +5,7 @@ import LoginPageContainer from '../pages/login/LoginPageContainer';
 import SharedHubPage from '../pages/shared-hub/SharedHubPage';
 import OpsConsolePage from '../pages/ops-console/OpsConsolePage';
 import WorkspacePage from '../pages/workspace/WorkspacePage';
+import { useWorkspaceContext } from '../entities/workspace/model/workspaceContext';
 import { PIPELINES } from '../data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from '../data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from '../data/dataSources';
@@ -255,6 +256,21 @@ function buildModuleSummary(moduleId, state) {
 }
 
 function AppShell() {
+  const {
+    workspaceStep,
+    setWorkspaceStep,
+    activeDataSourceId,
+    setActiveDataSourceId,
+    activePipelineId,
+    setActivePipelineId,
+    activeUserPipelineId,
+    setActiveUserPipelineId,
+    selectedModule,
+    setSelectedModule,
+    mainHubSection,
+    setMainHubSection,
+  } = useWorkspaceContext();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingPipelineId, setPendingPipelineId] = useState(null);
   const [pendingTitle, setPendingTitle] = useState("");
@@ -268,19 +284,13 @@ function AppShell() {
   const [isDataDeleteModalOpen, setIsDataDeleteModalOpen] = useState(false);
   const [dataSourceToDelete, setDataSourceToDelete] = useState(null);
 
-  const [selectedModule, setSelectedModule] = useState('workflow');
   /** 사이드바 목록에서 한 번 클릭으로만 바뀌는 강조(설정 화면은 더블클릭) */
   const [moduleSidebarFocus, setModuleSidebarFocus] = useState('workflow');
-  const [activePipelineId, setActivePipelineId] = useState(null);
-  const [activeUserPipelineId, setActiveUserPipelineId] = useState(null);
-  const [activeDataSourceId, setActiveDataSourceId] = useState(null);
-  const [workspaceStep, setWorkspaceStep] = useState('pipeline');
   const [templatePipelines, setTemplatePipelines] = useState(PIPELINES);
   const [userPipelines, setUserPipelines] = useState(() => loadUserPipelines());
   const [userPipelinesAuthRequired, setUserPipelinesAuthRequired] = useState(false);
   const [userPipelinesAuthMessage, setUserPipelinesAuthMessage] = useState('');
   const [activeDomainKey, setActiveDomainKey] = useState(null);
-  const [mainHubSection, setMainHubSection] = useState('pipeline');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false);
   const [dataSources, setDataSources] = useState(() => loadDataSources());
