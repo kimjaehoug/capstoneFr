@@ -1,19 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../data/domainModules';
 import './Sidebar.css';
-
-const MAIN_HUB_SECTIONS = [
-  { id: 'data', label: '데이터 조회/관리' },
-  { 
-    id: 'pipeline', 
-    label: '파이프라인 조회/관리',
-    subItems: [
-      { id: 'pipeline-shared', label: '공유 템플릿' },
-      { id: 'pipeline-mine', label: '내 파이프라인' }
-    ]
-  },
-  { id: 'modules', label: '모듈 조회/관리' },
-];
 
 function CollapsibleSection({ id, title, count, open, onToggle, children }) {
   return (
@@ -36,7 +23,6 @@ function Sidebar({
   activeUserPipeline, onClearUserPipeline, onAddModuleToUserPipeline,
   onRemoveModuleFromUserPipeline
 }) {
-  const [activeDropdown, setActiveDropdown] = useState(false);
   const editingPipeline = Boolean(activeUserPipeline);
   
   const [sectionOpen, setSectionOpen] = useState({ base: true, domain: true });
@@ -97,24 +83,6 @@ function Sidebar({
               </div>
               <span className="logo-text-main">WWorkbench</span>
             </button>
-            <nav className="header-nav-menu">
-              <ul className="nav-list">
-                {MAIN_HUB_SECTIONS.map((item) => (
-                  <li key={item.id} className="nav-item-wrapper" onMouseEnter={() => item.subItems && setActiveDropdown(true)} onMouseLeave={() => setActiveDropdown(false)}>
-                    <button type="button" className={`nav-link-btn ${mainHubSection.startsWith(item.id) ? 'active' : ''}`} onClick={() => !item.subItems && onMainHubSectionChange(item.id)}>
-                      {item.label} {item.subItems && <span className="arrow-down">▾</span>}
-                    </button>
-                    {item.subItems && activeDropdown && (
-                      <ul className="header-dropdown-list">
-                        {item.subItems.map((sub) => (
-                          <li key={sub.id} onClick={() => { onMainHubSectionChange(sub.id); setActiveDropdown(false); }}>{sub.label}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </nav>
           </div>
           <div className="header-right-group">
             {isAuthenticated ? (
