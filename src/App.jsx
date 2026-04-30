@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import Workspace from './components/Workspace';
 import ChatPanel from './components/ChatPanel';
 import LoginPage from './components/LoginPage';
+import PipelineHub from './modules/PipelineHub';
 import { PIPELINES } from './data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
@@ -113,8 +114,15 @@ const AUTH_REQUIRED_DATA_FORM_CACHE_KEY = 'stage-one-auth-required-data-form';
 const AUTH_REQUIRED_DRAFT_TTL_MS = 30 * 60 * 1000;
 const APP_CACHE_PREFIXES = ['stage-one-', 'ai-workbench-'];
 const LOGOUT_CACHE_CLEAR_SIGNAL_KEY = 'stage-one-logout-cache-clear-signal';
+const TOP_LEVEL_ROUTES = ['/workspace', '/hub/shared', '/console/ops'];
 function getAuthUserId(auth) {
   return auth?.user?.id ?? auth?.user?.userId ?? null;
+}
+
+function normalizeAppPath(path) {
+  if (TOP_LEVEL_ROUTES.some((route) => path.startsWith(route))) return path;
+  if (path === '/login') return '/login';
+  return '/workspace';
 }
 
 function clearAppTemporaryCaches() {
@@ -272,7 +280,7 @@ function App() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pipelineToDelete, setPipelineToDelete] = useState(null);
   const [currentPath, setCurrentPath] = useState(() =>
-    typeof window === 'undefined' ? '/' : window.location.pathname || '/'
+    typeof window === 'undefined' ? '/workspace' : normalizeAppPath(window.location.pathname || '/workspace')
   );
 
   const [isDataDeleteModalOpen, setIsDataDeleteModalOpen] = useState(false);
@@ -395,7 +403,7 @@ function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const handlePopState = () => {
-      setCurrentPath(window.location.pathname || '/');
+      setCurrentPath(normalizeAppPath(window.location.pathname || '/workspace'));
     };
     window.addEventListener('popstate', handlePopState);
     return () => {
@@ -405,11 +413,12 @@ function App() {
 
   const moveToPath = (path) => {
     if (typeof window === 'undefined') return;
+    const nextPath = normalizeAppPath(path);
     const current = window.location.pathname || '/';
-    if (current !== path) {
-      window.history.pushState({}, '', path);
+    if (current !== nextPath) {
+      window.history.pushState({}, '', nextPath);
     }
-    setCurrentPath(path);
+    setCurrentPath(nextPath);
   };
 
   const buildDraftCache = () => ({
@@ -1357,7 +1366,7 @@ function App() {
         window.sessionStorage.removeItem(AUTH_REQUIRED_DRAFT_CACHE_KEY);
       }
     }
-    moveToPath('/');
+    moveToPath('/workspace');
   };
 
   const handleLogout = async () => {
@@ -1378,7 +1387,7 @@ function App() {
   };
 
   const handleGoHome = () => {
-    moveToPath('/');
+    moveToPath('/workspace');
     setSelectedModule('workflow');
     setMainHubSection('pipeline');
     setActivePipelineId(null);
@@ -1386,119 +1395,186 @@ function App() {
     setActiveDomainKey(null);
   };
 
+  const isWorkspaceRoute = currentPath.startsWith('/workspace');
+  const isSharedHubRoute = currentPath.startsWith('/hub/shared');
+  const isOpsConsoleRoute = currentPath.startsWith('/console/ops');
+
   if (currentPath === '/login') {
     return (
       <div className="app-root">
-        <LoginPage onBack={() => moveToPath('/')} onLoginSuccess={handleLoginSuccess} />
+        <LoginPage onBack={() => moveToPath('/workspace')} onLoginSuccess={handleLoginSuccess} />
       </div>
     );
   }
 
   return (
     <div className="app-root">
-      <div
-        className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}${
-          chatPanelCollapsed ? ' app-shell--chat-collapsed' : ''
-        }`}
-      >
-        <Sidebar
-          auth={auth} 
-          isAuthenticated={isAuthenticated}
-          moveToPath={moveToPath} 
-          handleLogout={handleLogout} 
-          handleGoHome={handleGoHome}
-          showModuleSidebar={showModuleSidebar}
-          workflowModule={MODULES[0]}
-          baseModules={MODULES.slice(1)}
-          domainModules={domainSidebarModules}
-          mainHubSection={mainHubSection}
-          onMainHubSectionChange={(id) => {
-            setMainHubSection(id);
-            setActivePipelineId(null);
-            setActiveUserPipelineId(null);
-            setActiveDomainKey(null);
-          }}
-          moduleSidebarFocus={moduleSidebarFocus}
-          onModuleSidebarFocus={handleModuleSidebarFocus}
-          onOpenModuleSettings={handleSelectModule}
-          moduleStatus={moduleStatus}
-          activeUserPipeline={activeUserPipeline}
-          onClearUserPipeline={clearUserPipelineEdit}
-          onAddModuleToUserPipeline={addModuleToUserPipeline}
-          onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
-        />
+      <header className="workspace-top-nav">
+        <button type="button" className={`workspace-top-nav-btn ${isWorkspaceRoute ? 'active' : ''}`} onClick={() => moveToPath('/workspace')}>
+          워크스페이스
+        </button>
+        <button type="button" className={`workspace-top-nav-btn ${isSharedHubRoute ? 'active' : ''}`} onClick={() => moveToPath('/hub/shared')}>
+          공유 허브
+        </button>
+        <button type="button" className={`workspace-top-nav-btn ${isOpsConsoleRoute ? 'active' : ''}`} onClick={() => moveToPath('/console/ops')}>
+          운영 콘솔
+        </button>
+      </header>
 
-        <main className="workspace-area">
-          <Workspace
-            modules={ALL_MODULE_CATALOG}
-            pipelines={templatePipelines}
-            userPipelines={userPipelines}
-            activePipelineId={activePipelineId}
-            onSelectPipeline={handleSelectPipeline}
-            onClearPipeline={() => {
+      <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}${chatPanelCollapsed ? ' app-shell--chat-collapsed' : ''}`}>
+        {isWorkspaceRoute ? (
+          <Sidebar
+            auth={auth}
+            isAuthenticated={isAuthenticated}
+            moveToPath={moveToPath}
+            handleLogout={handleLogout}
+            handleGoHome={handleGoHome}
+            showModuleSidebar={showModuleSidebar}
+            workflowModule={MODULES[0]}
+            baseModules={MODULES.slice(1)}
+            domainModules={domainSidebarModules}
+            mainHubSection={mainHubSection}
+            onMainHubSectionChange={(id) => {
+              setMainHubSection(id);
               setActivePipelineId(null);
               setActiveUserPipelineId(null);
               setActiveDomainKey(null);
             }}
-            onCopyTemplateToUser={copyTemplateToUser}
-            onDuplicateUserPipeline={duplicateUserPipeline}
-            onDeleteUserPipeline={deleteUserPipeline}
-            selectedModule={selectedModule}
-            onSelectModule={handleSelectModule}
+            moduleSidebarFocus={moduleSidebarFocus}
+            onModuleSidebarFocus={handleModuleSidebarFocus}
+            onOpenModuleSettings={handleSelectModule}
             moduleStatus={moduleStatus}
-            moduleMemory={moduleMemory}
-            onSaveCurrentModule={saveCurrentModule}
-            diagnosisResult={diagnosisResult}
-            onDiagnosisChange={setDiagnosisResult}
-            domainForm={domainForm}
-            onDomainChange={handleDomainChange}
-            onAutoDraftDomain={handleAutoDraftDomain}
-            searchDomainContext={searchDomainContext}
-            usingSavedDomain={usingSavedDomain}
-            selectedDatasets={selectedDatasets}
-            onToggleDataset={toggleDatasetSelection}
-            matchingDatasets={matchingDatasets}
-            usingSavedSearch={usingSavedSearch}
-            matchingReview={matchingReview}
-            onMatchingReviewChange={setMatchingReview}
-            synthesisOptions={synthesisOptions}
-            matchingContext={savedMatching}
-            onSetSynthesisMode={setSynthesisMode}
-            onToggleSynthesisConstraint={toggleSynthesisConstraint}
-            onRunSynthesis={runSynthesis}
-            resultFocus={resultFocus}
-            onResultFocusChange={setResultFocus}
-            synthesisContext={savedSynthesis}
-            domainModuleNotes={domainModuleNotes}
-            onDomainModuleNoteChange={(moduleId, value) =>
-              setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value }))
-            }
-            mainHubSection={mainHubSection}
-            onMainHubSectionChange={setMainHubSection}
-            dataSources={dataSources}
-            dataSourcesAuthRequired={dataSourcesAuthRequired}
-            dataSourcesAuthMessage={dataSourcesAuthMessage}
-            onAddDataSource={addDataSource}
-            onUpdateDataSource={updateDataSource}
-            onDeleteDataSource={deleteDataSource}
-            onConnectDataToPipeline={connectDataToPipeline}
-            onCreatePipelineAndLinkData={createPipelineAndLinkData}
-            onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
-            onGoLogin={() => moveToPath('/login')}
-            isAuthenticated={isAuthenticated}
-            userPipelinesAuthRequired={userPipelinesAuthRequired}
-            userPipelinesAuthMessage={userPipelinesAuthMessage}
-            onUpdateUserPipeline={updateUserPipeline}
-            onMoveModuleInUserPipeline={moveModuleInUserPipeline}
+            activeUserPipeline={activeUserPipeline}
+            onClearUserPipeline={clearUserPipelineEdit}
+            onAddModuleToUserPipeline={addModuleToUserPipeline}
             onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
-            onSetUserPipelineModulePosition={setUserPipelineModulePosition}
-            onConnectModuleAfterInUserPipeline={connectModuleAfterInUserPipeline}
-            onDisconnectEdgeAfterInUserPipeline={disconnectEdgeAfterInUserPipeline}
-            activeUserPipelineId={activeUserPipelineId}
-            onStartPipelineFromModule={startPipelineFromModule}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
           />
+        ) : null}
+
+        <main className="workspace-area">
+          {isWorkspaceRoute ? (
+            <Workspace
+              modules={ALL_MODULE_CATALOG}
+              pipelines={templatePipelines}
+              userPipelines={userPipelines}
+              activePipelineId={activePipelineId}
+              onSelectPipeline={handleSelectPipeline}
+              onClearPipeline={() => {
+                setActivePipelineId(null);
+                setActiveUserPipelineId(null);
+                setActiveDomainKey(null);
+              }}
+              onCopyTemplateToUser={copyTemplateToUser}
+              onDuplicateUserPipeline={duplicateUserPipeline}
+              onDeleteUserPipeline={deleteUserPipeline}
+              selectedModule={selectedModule}
+              onSelectModule={handleSelectModule}
+              moduleStatus={moduleStatus}
+              moduleMemory={moduleMemory}
+              onSaveCurrentModule={saveCurrentModule}
+              diagnosisResult={diagnosisResult}
+              onDiagnosisChange={setDiagnosisResult}
+              domainForm={domainForm}
+              onDomainChange={handleDomainChange}
+              onAutoDraftDomain={handleAutoDraftDomain}
+              searchDomainContext={searchDomainContext}
+              usingSavedDomain={usingSavedDomain}
+              selectedDatasets={selectedDatasets}
+              onToggleDataset={toggleDatasetSelection}
+              matchingDatasets={matchingDatasets}
+              usingSavedSearch={usingSavedSearch}
+              matchingReview={matchingReview}
+              onMatchingReviewChange={setMatchingReview}
+              synthesisOptions={synthesisOptions}
+              matchingContext={savedMatching}
+              onSetSynthesisMode={setSynthesisMode}
+              onToggleSynthesisConstraint={toggleSynthesisConstraint}
+              onRunSynthesis={runSynthesis}
+              resultFocus={resultFocus}
+              onResultFocusChange={setResultFocus}
+              synthesisContext={savedSynthesis}
+              domainModuleNotes={domainModuleNotes}
+              onDomainModuleNoteChange={(moduleId, value) =>
+                setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value }))
+              }
+              mainHubSection={mainHubSection}
+              onMainHubSectionChange={setMainHubSection}
+              dataSources={dataSources}
+              dataSourcesAuthRequired={dataSourcesAuthRequired}
+              dataSourcesAuthMessage={dataSourcesAuthMessage}
+              onAddDataSource={addDataSource}
+              onUpdateDataSource={updateDataSource}
+              onDeleteDataSource={deleteDataSource}
+              onConnectDataToPipeline={connectDataToPipeline}
+              onCreatePipelineAndLinkData={createPipelineAndLinkData}
+              onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
+              onGoLogin={() => moveToPath('/login')}
+              isAuthenticated={isAuthenticated}
+              userPipelinesAuthRequired={userPipelinesAuthRequired}
+              userPipelinesAuthMessage={userPipelinesAuthMessage}
+              onUpdateUserPipeline={updateUserPipeline}
+              onAddModuleToUserPipeline={addModuleToUserPipeline}
+              onMoveModuleInUserPipeline={moveModuleInUserPipeline}
+              onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
+              onSetUserPipelineModulePosition={setUserPipelineModulePosition}
+              onConnectModuleAfterInUserPipeline={connectModuleAfterInUserPipeline}
+              onDisconnectEdgeAfterInUserPipeline={disconnectEdgeAfterInUserPipeline}
+              activeUserPipelineId={activeUserPipelineId}
+              activeUserPipeline={activeUserPipeline}
+              onStartPipelineFromModule={startPipelineFromModule}
+            />
+          ) : null}
+          {isSharedHubRoute ? (
+            <PipelineHub
+              templatePipelines={templatePipelines}
+              userPipelines={[]}
+              modules={ALL_MODULE_CATALOG}
+              moduleStatus={moduleStatus}
+              moduleMemory={moduleMemory}
+              activePipelineId={activePipelineId}
+              onSelectPipeline={handleSelectPipeline}
+              onClearPipeline={() => setActivePipelineId(null)}
+              onStartModule={handleSelectModule}
+              onCopyTemplateToUser={copyTemplateToUser}
+              onDuplicateUserPipeline={duplicateUserPipeline}
+              onDeleteUserPipeline={deleteUserPipeline}
+              onUpdateUserPipeline={updateUserPipeline}
+              onMoveModuleInUserPipeline={moveModuleInUserPipeline}
+              onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
+              onSetUserPipelineModulePosition={setUserPipelineModulePosition}
+              onConnectModuleAfterInUserPipeline={connectModuleAfterInUserPipeline}
+              onDisconnectEdgeAfterInUserPipeline={disconnectEdgeAfterInUserPipeline}
+              userPipelinesAuthRequired={false}
+              userPipelinesAuthMessage=""
+            />
+          ) : null}
+          {isOpsConsoleRoute ? (
+            <section className="hub-page">
+              <header className="hub-hero">
+                <p className="hub-eyebrow">Ops Console</p>
+                <h3 className="hub-hero-title">운영 콘솔</h3>
+                <p className="hub-hero-lead">조회/모니터링 전용 화면입니다. 수정은 워크스페이스에서 진행하세요.</p>
+              </header>
+              <div className="card-grid">
+                <article className="card workflow-card">
+                  <h4>내 데이터소스</h4>
+                  <p>{dataSources.length}건</p>
+                  <button type="button" className="btn-primary-inline" onClick={() => moveToPath('/workspace')}>워크스페이스에서 수정</button>
+                </article>
+                <article className="card workflow-card">
+                  <h4>내 파이프라인</h4>
+                  <p>{userPipelines.length}건</p>
+                  <button type="button" className="btn-primary-inline" onClick={() => moveToPath('/workspace')}>워크스페이스에서 수정</button>
+                </article>
+                <article className="card workflow-card">
+                  <h4>모듈 저장 상태</h4>
+                  <p>{Object.values(moduleMemory).filter((m) => m?.savedAt).length}개 저장됨</p>
+                </article>
+              </div>
+            </section>
+          ) : null}
         </main>
 
         {isModalOpen && (

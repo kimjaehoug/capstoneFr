@@ -9,6 +9,7 @@ import SynthesisModule from '../modules/SynthesisModule';
 import ResultsModule from '../modules/ResultsModule';
 import SpecialtyModule from '../modules/SpecialtyModule';
 import { DOMAIN_MODULE_IDS } from '../data/domainModules';
+import PipelineComposerBar from './PipelineComposerBar';
 
 function formatSavedTime(isoDate) {
   if (!isoDate) return '-';
@@ -71,12 +72,14 @@ function Workspace({
   userPipelinesAuthRequired,
   userPipelinesAuthMessage,
   onUpdateUserPipeline,
+  onAddModuleToUserPipeline,
   onMoveModuleInUserPipeline,
   onRemoveModuleFromUserPipeline,
   onSetUserPipelineModulePosition,
   onConnectModuleAfterInUserPipeline,
   onDisconnectEdgeAfterInUserPipeline,
   activeUserPipelineId,
+  activeUserPipeline,
   onStartPipelineFromModule,
   isAuthenticated,
 }) {
@@ -284,6 +287,16 @@ function Workspace({
 
   return (
     <div className="workspace panel">
+      <PipelineComposerBar
+        activeUserPipeline={activeUserPipeline}
+        modules={modules}
+        onSelectModule={onSelectModule}
+        onAddModule={onAddModuleToUserPipeline}
+        onRemoveModule={onRemoveModuleFromUserPipeline}
+        onMoveModule={onMoveModuleInUserPipeline}
+        onConnectAfter={onConnectModuleAfterInUserPipeline}
+        onDisconnectAfter={onDisconnectEdgeAfterInUserPipeline}
+      />
       {showWorkspaceHeader && (
         <header
           className={`workspace-header ${showModuleBack || showPipelineHubBack ? 'workspace-header--has-back' : ''}`}

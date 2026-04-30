@@ -205,6 +205,83 @@ button.active {
   box-sizing: border-box;
 }
 
+.workspace-top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(242, 245, 248, 0.94);
+  border-bottom: 1px solid var(--border);
+  z-index: 20;
+}
+
+.workspace-top-nav-btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-main);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
+}
+
+.workspace-top-nav-btn.active {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pipeline-composer-bar {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.pipeline-composer-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pipeline-composer-chain {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pipeline-composer-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.pipeline-composer-label {
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  padding: 0;
+}
+
+.pipeline-composer-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.pipeline-composer-add {
+  display: grid;
+  gap: 6px;
+}
+
 .app-topbar {
   height: 62px;
   display: flex;
