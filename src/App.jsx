@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Sidebar from './components/Sidebar';
-import Workspace from './components/Workspace';
 import ChatPanel from './components/ChatPanel';
 import LoginPage from './components/LoginPage';
-import WorkspaceContextBar from './components/WorkspaceContextBar';
 import SharedHubPage from './pages/shared-hub/SharedHubPage';
 import OpsConsolePage from './pages/ops-console/OpsConsolePage';
+import WorkspacePage from './pages/workspace/WorkspacePage';
 import { PIPELINES } from './data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from './data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from './data/dataSources';
@@ -1548,6 +1547,86 @@ function App() {
   const isWorkspaceRoute = currentPath.startsWith('/workspace');
   const isSharedHubRoute = currentPath.startsWith('/hub/shared');
   const isOpsConsoleRoute = currentPath.startsWith('/console/ops');
+  const workspaceProps = {
+    modules: ALL_MODULE_CATALOG,
+    pipelines: templatePipelines,
+    userPipelines,
+    activePipelineId,
+    onSelectPipeline: handleSelectPipeline,
+    onClearPipeline: () => {
+      setActivePipelineId(null);
+      setActiveUserPipelineId(null);
+      setActiveDomainKey(null);
+    },
+    onCopyTemplateToUser: copyTemplateToUser,
+    onDuplicateUserPipeline: duplicateUserPipeline,
+    onDeleteUserPipeline: deleteUserPipeline,
+    selectedModule,
+    onSelectModule: handleSelectModule,
+    moduleStatus,
+    moduleMemory,
+    onSaveCurrentModule: saveCurrentModule,
+    diagnosisResult,
+    onDiagnosisChange: setDiagnosisResult,
+    domainForm,
+    onDomainChange: handleDomainChange,
+    onAutoDraftDomain: handleAutoDraftDomain,
+    searchDomainContext,
+    usingSavedDomain,
+    selectedDatasets,
+    onToggleDataset: toggleDatasetSelection,
+    matchingDatasets,
+    usingSavedSearch,
+    matchingReview,
+    onMatchingReviewChange: setMatchingReview,
+    synthesisOptions,
+    matchingContext: savedMatching,
+    onSetSynthesisMode: setSynthesisMode,
+    onToggleSynthesisConstraint: toggleSynthesisConstraint,
+    onRunSynthesis: runSynthesis,
+    resultFocus,
+    onResultFocusChange: setResultFocus,
+    synthesisContext: savedSynthesis,
+    domainModuleNotes,
+    onDomainModuleNoteChange: (moduleId, value) => setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value })),
+    mainHubSection,
+    onMainHubSectionChange: (sectionId) => {
+      setMainHubSection(sectionId);
+      if (sectionId === 'data') setWorkspaceStep('data');
+      else setWorkspaceStep('pipeline');
+    },
+    dataSources,
+    dataSourcesAuthRequired,
+    dataSourcesAuthMessage,
+    onAddDataSource: addDataSource,
+    onUpdateDataSource: updateDataSource,
+    onDeleteDataSource: deleteDataSource,
+    onConnectDataToPipeline: connectDataToPipeline,
+    onCreatePipelineAndLinkData: createPipelineAndLinkData,
+    onRequireLoginForDataFormDraft: requestLoginForDataFormDraft,
+    onDraftRestored: () =>
+      trackEvent('draft_restored', {
+        userId: currentUserId,
+        pipelineId: activeUserPipelineId || activePipelineId,
+        moduleId: selectedModule,
+        step: workspaceStep,
+        result: 'success',
+      }),
+    onGoLogin: () => moveToPath('/login'),
+    isAuthenticated,
+    userPipelinesAuthRequired,
+    userPipelinesAuthMessage,
+    onUpdateUserPipeline: updateUserPipeline,
+    onAddModuleToUserPipeline: addModuleToUserPipeline,
+    onMoveModuleInUserPipeline: moveModuleInUserPipeline,
+    onRemoveModuleFromUserPipeline: removeModuleFromUserPipeline,
+    onSetUserPipelineModulePosition: setUserPipelineModulePosition,
+    onConnectModuleAfterInUserPipeline: connectModuleAfterInUserPipeline,
+    onDisconnectEdgeAfterInUserPipeline: disconnectEdgeAfterInUserPipeline,
+    activeUserPipelineId,
+    activeUserPipeline,
+    onStartPipelineFromModule: startPipelineFromModule,
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined' || !isWorkspaceRoute) return;
@@ -1633,127 +1712,25 @@ function App() {
         ) : null}
 
         <main className="workspace-area">
-          {conflictInfo ? (
-            <div className="conflict-banner">
-              <span>충돌 감지: {conflictInfo.actionLabel}</span>
-              <div className="conflict-banner-actions">
-                <button
-                  type="button"
-                  className="btn-secondary-inline"
-                  onClick={async () => {
-                    await reloadUserPipelines();
-                    setConflictInfo(null);
-                  }}
-                >
-                  최신 반영
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary-inline"
-                  onClick={async () => {
-                    await conflictInfo.retry?.();
-                    setConflictInfo(null);
-                  }}
-                >
-                  내 변경 재시도
-                </button>
-              </div>
-            </div>
-          ) : null}
           {isWorkspaceRoute ? (
-            <>
-              <WorkspaceContextBar
-                workspaceStep={workspaceStep}
-                activeDataSource={activeDataSource}
-                activePipeline={activePipeline}
-                activeModule={activeModule}
-                onStepChange={handleWorkspaceStepChange}
-                onClearContext={clearWorkspaceContext}
-              />
-              <Workspace
-                modules={ALL_MODULE_CATALOG}
-                pipelines={templatePipelines}
-                userPipelines={userPipelines}
-                activePipelineId={activePipelineId}
-                onSelectPipeline={handleSelectPipeline}
-                onClearPipeline={() => {
-                  setActivePipelineId(null);
-                  setActiveUserPipelineId(null);
-                  setActiveDomainKey(null);
-                }}
-                onCopyTemplateToUser={copyTemplateToUser}
-                onDuplicateUserPipeline={duplicateUserPipeline}
-                onDeleteUserPipeline={deleteUserPipeline}
-                selectedModule={selectedModule}
-                onSelectModule={handleSelectModule}
-                moduleStatus={moduleStatus}
-                moduleMemory={moduleMemory}
-                onSaveCurrentModule={saveCurrentModule}
-                diagnosisResult={diagnosisResult}
-                onDiagnosisChange={setDiagnosisResult}
-                domainForm={domainForm}
-                onDomainChange={handleDomainChange}
-                onAutoDraftDomain={handleAutoDraftDomain}
-                searchDomainContext={searchDomainContext}
-                usingSavedDomain={usingSavedDomain}
-                selectedDatasets={selectedDatasets}
-                onToggleDataset={toggleDatasetSelection}
-                matchingDatasets={matchingDatasets}
-                usingSavedSearch={usingSavedSearch}
-                matchingReview={matchingReview}
-                onMatchingReviewChange={setMatchingReview}
-                synthesisOptions={synthesisOptions}
-                matchingContext={savedMatching}
-                onSetSynthesisMode={setSynthesisMode}
-                onToggleSynthesisConstraint={toggleSynthesisConstraint}
-                onRunSynthesis={runSynthesis}
-                resultFocus={resultFocus}
-                onResultFocusChange={setResultFocus}
-                synthesisContext={savedSynthesis}
-                domainModuleNotes={domainModuleNotes}
-                onDomainModuleNoteChange={(moduleId, value) =>
-                  setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value }))
-                }
-                mainHubSection={mainHubSection}
-                onMainHubSectionChange={(sectionId) => {
-                  setMainHubSection(sectionId);
-                  if (sectionId === 'data') setWorkspaceStep('data');
-                  else setWorkspaceStep('pipeline');
-                }}
-                dataSources={dataSources}
-                dataSourcesAuthRequired={dataSourcesAuthRequired}
-                dataSourcesAuthMessage={dataSourcesAuthMessage}
-                onAddDataSource={addDataSource}
-                onUpdateDataSource={updateDataSource}
-                onDeleteDataSource={deleteDataSource}
-                onConnectDataToPipeline={connectDataToPipeline}
-                onCreatePipelineAndLinkData={createPipelineAndLinkData}
-                onRequireLoginForDataFormDraft={requestLoginForDataFormDraft}
-                onDraftRestored={() =>
-                  trackEvent('draft_restored', {
-                    userId: currentUserId,
-                    pipelineId: activeUserPipelineId || activePipelineId,
-                    moduleId: selectedModule,
-                    step: workspaceStep,
-                    result: 'success',
-                  })
-                }
-                onGoLogin={() => moveToPath('/login')}
-                isAuthenticated={isAuthenticated}
-                userPipelinesAuthRequired={userPipelinesAuthRequired}
-                userPipelinesAuthMessage={userPipelinesAuthMessage}
-                onUpdateUserPipeline={updateUserPipeline}
-                onAddModuleToUserPipeline={addModuleToUserPipeline}
-                onMoveModuleInUserPipeline={moveModuleInUserPipeline}
-                onRemoveModuleFromUserPipeline={removeModuleFromUserPipeline}
-                onSetUserPipelineModulePosition={setUserPipelineModulePosition}
-                onConnectModuleAfterInUserPipeline={connectModuleAfterInUserPipeline}
-                onDisconnectEdgeAfterInUserPipeline={disconnectEdgeAfterInUserPipeline}
-                activeUserPipelineId={activeUserPipelineId}
-                activeUserPipeline={activeUserPipeline}
-                onStartPipelineFromModule={startPipelineFromModule}
-              />
-            </>
+            <WorkspacePage
+              conflictInfo={conflictInfo}
+              onResolveConflictWithReload={async () => {
+                await reloadUserPipelines();
+                setConflictInfo(null);
+              }}
+              onRetryConflict={async () => {
+                await conflictInfo?.retry?.();
+                setConflictInfo(null);
+              }}
+              workspaceStep={workspaceStep}
+              activeDataSource={activeDataSource}
+              activePipeline={activePipeline}
+              activeModule={activeModule}
+              onStepChange={handleWorkspaceStepChange}
+              onClearContext={clearWorkspaceContext}
+              workspaceProps={workspaceProps}
+            />
           ) : null}
           {isSharedHubRoute ? (
             <SharedHubPage
