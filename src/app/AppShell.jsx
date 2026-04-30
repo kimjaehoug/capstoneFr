@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import ChatPanel from '../components/ChatPanel';
 import LoginPageContainer from '../pages/login/LoginPageContainer';
+import HomePage from '../pages/home/HomePage';
 import SharedHubPage from '../pages/shared-hub/SharedHubPage';
 import OpsConsolePage from '../pages/ops-console/OpsConsolePage';
 import WorkspacePage from '../pages/workspace/WorkspacePage';
@@ -65,6 +66,7 @@ import {
   USER_PIPELINES_KEY,
 } from '../shared/constants/storageKeys';
 import {
+  HOME_ROUTE,
   LOGIN_ROUTE,
   normalizeAppPath,
   OPS_CONSOLE_ROUTE,
@@ -273,7 +275,7 @@ function AppShell() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState("");
   const [currentPath, setCurrentPath] = useState(() =>
-    typeof window === 'undefined' ? WORKSPACE_ROUTE : normalizeAppPath(window.location.pathname || WORKSPACE_ROUTE)
+    typeof window === 'undefined' ? HOME_ROUTE : normalizeAppPath(window.location.pathname || HOME_ROUTE)
   );
 
   /** 사이드바 목록에서 한 번 클릭으로만 바뀌는 강조(설정 화면은 더블클릭) */
@@ -330,7 +332,7 @@ function AppShell() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const handlePopState = () => {
-      setCurrentPath(normalizeAppPath(window.location.pathname || WORKSPACE_ROUTE));
+      setCurrentPath(normalizeAppPath(window.location.pathname || HOME_ROUTE));
     };
     window.addEventListener('popstate', handlePopState);
     return () => {
@@ -1063,7 +1065,7 @@ function AppShell() {
   };
 
   const handleGoHome = () => {
-    moveToPath(WORKSPACE_ROUTE);
+    moveToPath(HOME_ROUTE);
     setSelectedModule('workflow');
     setMainHubSection('pipeline');
     setActivePipelineId(null);
@@ -1071,6 +1073,7 @@ function AppShell() {
     setActiveDomainKey(null);
   };
 
+  const isHomeRoute = currentPath.startsWith(HOME_ROUTE);
   const isWorkspaceRoute = currentPath.startsWith(WORKSPACE_ROUTE);
   const isSharedHubRoute = currentPath.startsWith(SHARED_HUB_ROUTE);
   const isOpsConsoleRoute = currentPath.startsWith(OPS_CONSOLE_ROUTE);
@@ -1239,6 +1242,7 @@ function AppShell() {
               workspaceProps={workspaceProps}
             />
           ) : null}
+          {isHomeRoute ? <HomePage onMoveToPath={moveToPath} /> : null}
           {isSharedHubRoute ? (
             <SharedHubPage
               templatePipelines={templatePipelines}
@@ -1291,16 +1295,18 @@ function AppShell() {
           onCloseDataDelete={closeDataDeleteModal}
         />
 
-        <ChatPanel
-          messages={chatMessages}
-          onSendMessage={appendChat}
-          onUsePrompt={appendChat}
-          modules={ALL_MODULE_CATALOG}
-          moduleStatus={moduleStatus}
-          moduleMemory={moduleMemory}
-          collapsed={chatPanelCollapsed}
-          onToggleCollapsed={() => setChatPanelCollapsed(!chatPanelCollapsed)}
-        />
+        {isWorkspaceRoute ? (
+          <ChatPanel
+            messages={chatMessages}
+            onSendMessage={appendChat}
+            onUsePrompt={appendChat}
+            modules={ALL_MODULE_CATALOG}
+            moduleStatus={moduleStatus}
+            moduleMemory={moduleMemory}
+            collapsed={chatPanelCollapsed}
+            onToggleCollapsed={() => setChatPanelCollapsed(!chatPanelCollapsed)}
+          />
+        ) : null}
       </div>
     </div>
   );
