@@ -338,6 +338,8 @@ function App() {
     },
   ]);
   const [conflictInfo, setConflictInfo] = useState(null);
+  const [opsQuery, setOpsQuery] = useState('');
+  const [opsType, setOpsType] = useState('all');
   const [auth, setAuth] = useState(() => loadAuthState());
   const currentUserId = getAuthUserId(auth);
   const isAuthenticated = Boolean(auth?.accessToken);
@@ -590,6 +592,36 @@ function App() {
     () => ALL_MODULE_CATALOG.find((m) => m.id === selectedModule) ?? null,
     [selectedModule],
   );
+  const opsRows = useMemo(() => {
+    const sourceRows = dataSources.map((d) => ({
+      type: 'data-source',
+      id: d.id,
+      name: d.name,
+      status: d.updated || '-',
+      ref: d.linkedPipelineId || '-',
+    }));
+    const pipelineRows = userPipelines.map((p) => ({
+      type: 'pipeline',
+      id: p.id,
+      name: p.title,
+      status: `${p.moduleIds.length} modules`,
+      ref: p.domainLabel || '-',
+    }));
+    const moduleRows = Object.entries(moduleMemory).map(([moduleId, value]) => ({
+      type: 'module-snapshot',
+      id: moduleId,
+      name: ALL_MODULE_CATALOG.find((m) => m.id === moduleId)?.label || moduleId,
+      status: value?.savedAt ? `saved ${formatSavedTime(value.savedAt)}` : 'unsaved',
+      ref: value?.summary || '-',
+    }));
+    const merged = [...sourceRows, ...pipelineRows, ...moduleRows];
+    return merged.filter((row) => {
+      const byType = opsType === 'all' || row.type === opsType;
+      const q = opsQuery.trim().toLowerCase();
+      const byQuery = !q || `${row.name} ${row.id} ${row.ref}`.toLowerCase().includes(q);
+      return byType && byQuery;
+    });
+  }, [dataSources, userPipelines, moduleMemory, opsType, opsQuery]);
 
   const handleSelectPipeline = (id) => {
     setSelectedModule('workflow');
@@ -1773,21 +1805,53 @@ function App() {
                 <h3 className="hub-hero-title">운영 콘솔</h3>
                 <p className="hub-hero-lead">조회/모니터링 전용 화면입니다. 수정은 워크스페이스에서 진행하세요.</p>
               </header>
-              <div className="card-grid">
-                <article className="card workflow-card">
-                  <h4>내 데이터소스</h4>
-                  <p>{dataSources.length}건</p>
-                  <button type="button" className="btn-primary-inline" onClick={() => moveToPath('/workspace')}>워크스페이스에서 수정</button>
-                </article>
-                <article className="card workflow-card">
-                  <h4>내 파이프라인</h4>
-                  <p>{userPipelines.length}건</p>
-                  <button type="button" className="btn-primary-inline" onClick={() => moveToPath('/workspace')}>워크스페이스에서 수정</button>
-                </article>
-                <article className="card workflow-card">
-                  <h4>모듈 저장 상태</h4>
-                  <p>{Object.values(moduleMemory).filter((m) => m?.savedAt).length}개 저장됨</p>
-                </article>
+              <div className="ops-toolbar">
+                <input
+                  value={opsQuery}
+                  onChange={(e) => setOpsQuery(e.target.value)}
+                  placeholder="이름/ID/참조 검색"
+                />
+                <select value={opsType} onChange={(e) => setOpsType(e.target.value)}>
+                  <option value="all">전체</option>
+                  <option value="data-source">데이터소스</option>
+                  <option value="pipeline">파이프라인</option>
+                  <option value="module-snapshot">모듈 스냅샷</option>
+                </select>
+                <button type="button" className="btn-primary-inline" onClick={() => moveToPath('/workspace')}>
+                  워크스페이스로 이동
+                </button>
+              </div>
+              <div className="main-hub-table-wrap">
+                <table className="main-hub-table">
+                  <thead>
+                    <tr>
+                      <th>유형</th>
+                      <th>ID</th>
+                      <th>이름</th>
+                      <th>상태</th>
+                      <th>참조</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {opsRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="main-hub-table-empty">
+                          조회 결과가 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      opsRows.map((row) => (
+                        <tr key={`${row.type}-${row.id}`}>
+                          <td>{row.type}</td>
+                          <td>{row.id}</td>
+                          <td>{row.name}</td>
+                          <td>{row.status}</td>
+                          <td>{row.ref}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </section>
           ) : null}

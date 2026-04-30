@@ -335,6 +335,13 @@ button.active {
   gap: 8px;
 }
 
+.ops-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 180px auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .app-topbar {
   height: 62px;
   display: flex;
