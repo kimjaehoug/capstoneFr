@@ -13,6 +13,21 @@ import { DOMAIN_MODULE_IDS } from '../data/domainModules';
 import PipelineComposerBar from './PipelineComposerBar';
 import StepExecutionBoard from './StepExecutionBoard';
 
+const CORE_EXECUTION_TASKS = ['diagnosis', 'domain', 'search', 'matching', 'synthesis', 'results'];
+const LEGACY_TASK_ALIAS = {
+  collection: 'diagnosis',
+  define: 'domain',
+  discovery: 'search',
+  discover: 'search',
+  match: 'matching',
+  matching: 'matching',
+  synth: 'synthesis',
+  synthesis: 'synthesis',
+  result: 'results',
+  results: 'results',
+  compare: 'results',
+};
+
 function formatSavedTime(isoDate) {
   if (!isoDate) return '-';
   return new Date(isoDate).toLocaleTimeString('ko-KR', {
@@ -123,10 +138,17 @@ function Workspace({
   const showWorkspaceHeader = !isMainHubRoot && !(displayModuleId === 'workflow' && activePipeline);
   const isStepExecutionView = workspaceStep === 'execution';
   const isReportView = workspaceStep === 'report';
-  const executionTasks = (activeUserPipeline?.moduleIds || activePipeline?.moduleIds || [])
-    .filter((id) => id !== 'workflow')
-    .map((id) => modules.find((m) => m.id === id))
-    .filter(Boolean);
+  const executionTaskIds = (activeUserPipeline || activePipeline) ? CORE_EXECUTION_TASKS : [];
+  const executionTasks = executionTaskIds.map((id) => {
+    const found = modules.find((m) => m.id === id);
+    if (found) return found;
+    return {
+      id,
+      label: id,
+      description: '임시 작업 단계입니다. 모듈 정의 동기화가 필요합니다.',
+      pipelineFrom: [],
+    };
+  });
 
   const executionPipelineChoices = [...userPipelines, ...pipelines];
   const reportPipelineChoices = [...userPipelines, ...pipelines];

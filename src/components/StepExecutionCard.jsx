@@ -1,5 +1,6 @@
 function StepExecutionCard({
   task,
+  dummy,
   state,
   isActive,
   isLast,
@@ -36,6 +37,25 @@ function StepExecutionCard({
         <span className={`status-pill mini ${status}`}>{statusLabelMap[status] || '진행 전'}</span>
       </header>
       <p className="step-card-desc">{task.description || '이 단계의 설정을 확인하고 실행하세요.'}</p>
+      {dummy?.inputSummary ? <p className="step-card-meta"><strong>입력:</strong> {dummy.inputSummary}</p> : null}
+      {Array.isArray(dummy?.evidence) && dummy.evidence.length ? (
+        <ul className="step-card-evidence">
+          {dummy.evidence.map((item) => (
+            <li key={`${task.id}-${item}`}>{item}</li>
+          ))}
+        </ul>
+      ) : null}
+      {dummy?.expectedResult ? <p className="step-card-meta"><strong>예상 결과:</strong> {dummy.expectedResult}</p> : null}
+      {Array.isArray(dummy?.subTasks) && dummy.subTasks.length ? (
+        <div className="step-card-subtasks">
+          <p className="step-card-subtasks-title">세부 작업</p>
+          <div className="step-card-subtasks-list">
+            {dummy.subTasks.map((item) => (
+              <span key={`${task.id}-sub-${item}`} className="step-card-subtask-chip">{item}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {summary ? <p className="step-card-summary">요약: {summary}</p> : null}
       <div className="step-card-actions">
         <button type="button" className="btn-primary-inline" onClick={() => onExecute(task.id)}>이 단계 실행</button>

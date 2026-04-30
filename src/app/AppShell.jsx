@@ -619,15 +619,24 @@ function AppShell() {
       return;
     }
     if (step === WORKSPACE_STEP_EXECUTION) {
+      const coreExecutionModules = new Set(['diagnosis', 'domain', 'search', 'matching', 'synthesis', 'results']);
       setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
       setMainHubSection('pipeline');
+      setLastStatusMessage('');
       if (!activePipelineId && !activeUserPipelineId) {
-        setSelectedModule('workflow');
+        const firstPipeline = userPipelines[0] || templatePipelines[0] || null;
+        if (!firstPipeline) {
+          setSelectedModule('workflow');
+          return;
+        }
+        selectPipelineContext(firstPipeline.id);
+        const firstTask = firstPipeline.moduleIds?.find((moduleId) => moduleId !== 'workflow');
+        setSelectedModule(firstTask || 'workflow');
         return;
       }
-      if (selectedModule === 'workflow') {
+      if (selectedModule === 'workflow' || !coreExecutionModules.has(selectedModule)) {
         const fallback = activePipeline?.moduleIds?.[0] || 'diagnosis';
-        setSelectedModule(fallback);
+        setSelectedModule(coreExecutionModules.has(fallback) ? fallback : 'diagnosis');
       }
       return;
     }

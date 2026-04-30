@@ -503,6 +503,50 @@ button.active {
   color: #516178;
 }
 
+.step-card-meta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #44576d;
+}
+
+.step-card-evidence {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  color: #516178;
+  font-size: 12px;
+}
+
+.step-card-evidence li {
+  margin: 2px 0;
+}
+
+.step-card-subtasks {
+  margin-top: 8px;
+}
+
+.step-card-subtasks-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #44576d;
+  font-weight: 700;
+}
+
+.step-card-subtasks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.step-card-subtask-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef4fa;
+  border: 1px solid #cddaea;
+  color: #355777;
+}
+
 .step-card-actions {
   margin-top: 10px;
   display: flex;
