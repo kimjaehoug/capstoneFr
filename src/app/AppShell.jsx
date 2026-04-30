@@ -5,6 +5,7 @@ import LoginPageContainer from '../pages/login/LoginPageContainer';
 import SharedHubPage from '../pages/shared-hub/SharedHubPage';
 import OpsConsolePage from '../pages/ops-console/OpsConsolePage';
 import WorkspacePage from '../pages/workspace/WorkspacePage';
+import AppModals from './components/AppModals';
 import { useWorkspaceContext } from '../entities/workspace/model/workspaceContext';
 import { useWorkspaceUrlSync } from '../entities/workspace/model/urlSync';
 import { useAuthContext } from '../entities/user/model/authState';
@@ -256,7 +257,6 @@ function AppShell() {
   } = useWorkspaceContext();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pendingPipelineId, setPendingPipelineId] = useState(null);
   const [pendingTitle, setPendingTitle] = useState("");
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -776,7 +776,6 @@ function AppShell() {
       });
       const pipeline = mapPipelineRecordToUi(copied.pipeline);
       setUserPipelines((prev) => [...prev, pipeline]);
-      setPendingPipelineId(pipeline.id);
       setPendingTitle(template.title);
       setIsModalOpen(true);
       setActiveDomainKey(pipeline.domainKey);
@@ -1622,76 +1621,24 @@ function AppShell() {
           ) : null}
         </main>
 
-        {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>알림</h3>
-            <p>
-            <strong>"{pendingTitle}"</strong>이 복사되었습니다.<br/>
-            '내 파이프라인' 메뉴에서 확인하시겠습니까?
-            </p>
-            <div className="modal-actions">
-              <button className="btn-modal-primary" onClick={() => {
-                setMainHubSection('pipeline-mine');
-                //setActiveUserPipelineId(pendingPipelineId);
-                //setActivePipelineId(null);
-                setSelectedModule('workflow');
-                setIsModalOpen(false);
-              }}>예</button>
-              <button className="btn-modal-secondary" onClick={() => setIsModalOpen(false)}>아니오</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isDeleteModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>파이프라인 삭제</h3>
-            <p>
-              <strong>"{pipelineToDelete?.title}"</strong><br/>
-              이 파이프라인을 정말 삭제하시겠습니까?
-            </p>
-            <div className="modal-actions">
-              <button 
-                className="btn-modal-delete-primary" 
-                onClick={confirmDelete}
-              >
-                삭제하기
-              </button>
-              <button className="btn-modal-secondary" onClick={() => setIsDeleteModalOpen(false)}>
-                취소
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isDataDeleteModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>데이터 삭제</h3>
-            <p>
-              <strong>"{dataSourceToDelete?.name}"</strong><br/>
-              이 데이터셋을 정말 삭제하시겠습니까?
-            </p>
-            <div className="modal-actions">
-              <button 
-                className="btn-modal-delete-primary"
-                onClick={confirmDataDelete}
-              >
-                삭제하기
-              </button>
-              <button 
-                className="btn-modal-secondary" 
-                onClick={() => setIsDataDeleteModalOpen(false)}
-              >
-                취소
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        <AppModals
+          isCopiedModalOpen={isModalOpen}
+          copiedTitle={pendingTitle}
+          onConfirmCopied={() => {
+            setMainHubSection('pipeline-mine');
+            setSelectedModule('workflow');
+            setIsModalOpen(false);
+          }}
+          onCloseCopied={() => setIsModalOpen(false)}
+          isPipelineDeleteModalOpen={isDeleteModalOpen}
+          pipelineToDelete={pipelineToDelete}
+          onConfirmPipelineDelete={confirmDelete}
+          onClosePipelineDelete={() => setIsDeleteModalOpen(false)}
+          isDataDeleteModalOpen={isDataDeleteModalOpen}
+          dataSourceToDelete={dataSourceToDelete}
+          onConfirmDataDelete={confirmDataDelete}
+          onCloseDataDelete={() => setIsDataDeleteModalOpen(false)}
+        />
 
         <ChatPanel
           messages={chatMessages}
