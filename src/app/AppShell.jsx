@@ -7,12 +7,12 @@ import OpsConsolePage from '../pages/ops-console/OpsConsolePage';
 import WorkspacePage from '../pages/workspace/WorkspacePage';
 import { useWorkspaceContext } from '../entities/workspace/model/workspaceContext';
 import { useWorkspaceUrlSync } from '../entities/workspace/model/urlSync';
+import { useAuthContext } from '../entities/user/model/authState';
 import { createWorkspaceProps } from '../pages/workspace/model/createWorkspaceProps';
 import { PIPELINES } from '../data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from '../data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from '../data/dataSources';
-import { clearAuthState, getMyProfile, loadAuthState, logout, saveAuthState } from '../utils/auth';
-import { isApiError, setUnauthorizedHandler } from '../api/client';
+import { isApiError } from '../api/client';
 import {
   createDataSource as createDataSourceApi,
   deleteDataSource as deleteDataSourceApi,
@@ -44,12 +44,10 @@ import {
 } from '../utils/pipelineConnections';
 import { trackEvent } from '../utils/analytics';
 import {
-  APP_CACHE_PREFIXES,
   AUTH_EXPIRED_NOTICE_KEY,
   AUTH_REQUIRED_DATA_FORM_CACHE_KEY,
   AUTH_REQUIRED_DRAFT_CACHE_KEY,
   AUTH_REQUIRED_DRAFT_TTL_MS,
-  LOGOUT_CACHE_CLEAR_SIGNAL_KEY,
   USER_PIPELINES_KEY,
 } from '../shared/constants/storageKeys';
 import { normalizeAppPath, WORKSPACE_ROUTE } from '../shared/constants/routes';
@@ -122,30 +120,6 @@ const SAVEABLE_MODULES = [
   'results',
   ...DOMAIN_MODULE_IDS,
 ];
-
-function getAuthUserId(auth) {
-  return auth?.user?.id ?? auth?.user?.userId ?? null;
-}
-
-function clearAppTemporaryCaches() {
-  if (typeof window === 'undefined') return;
-
-  const shouldClear = (key) => APP_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix));
-
-  for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
-    const key = window.localStorage.key(i);
-    if (key && shouldClear(key)) {
-      window.localStorage.removeItem(key);
-    }
-  }
-
-  for (let i = window.sessionStorage.length - 1; i >= 0; i -= 1) {
-    const key = window.sessionStorage.key(i);
-    if (key && shouldClear(key)) {
-      window.sessionStorage.removeItem(key);
-    }
-  }
-}
 
 function migrateUserPipeline(p) {
   const labelMap = { 의료: 'medical', 금융: 'finance', 제조: 'manufacturing' };
@@ -335,72 +309,7 @@ function AppShell() {
   const [conflictInfo, setConflictInfo] = useState(null);
   const [opsQuery, setOpsQuery] = useState('');
   const [opsType, setOpsType] = useState('all');
-  const [auth, setAuth] = useState(() => loadAuthState());
-  const currentUserId = getAuthUserId(auth);
-  const isAuthenticated = Boolean(auth?.accessToken);
-
-  useEffect(() => {
-    if (!auth?.accessToken || currentUserId) return;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const me = await getMyProfile(auth.accessToken);
-        const normalizedUser = me?.user
-          ? {
-              ...me.user,
-              id: me.user.id ?? me.user.userId ?? null,
-            }
-          : null;
-        if (!normalizedUser?.id || cancelled) return;
-        const next = { ...auth, user: normalizedUser };
-        saveAuthState(next);
-        setAuth(next);
-      } catch {
-        // 인증 만료/오류는 공통 unauthorized handler에서 처리한다.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [auth, currentUserId]);
-
-  useEffect(() => {
-    setUnauthorizedHandler(() => {
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(
-          AUTH_EXPIRED_NOTICE_KEY,
-          '세션이 만료되었습니다. 다시 로그인해주세요.',
-        );
-      }
-      clearAuthState();
-      setAuth(null);
-      setSelectedModule('workflow');
-      setMainHubSection('pipeline');
-      setActivePipelineId(null);
-      setActiveUserPipelineId(null);
-      setActiveDomainKey(null);
-      if (typeof window !== 'undefined' && (window.location.pathname || '/') !== '/login') {
-        window.history.pushState({}, '', '/login');
-        setCurrentPath('/login');
-      }
-    });
-
-    return () => setUnauthorizedHandler(null);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    const handleStorage = (event) => {
-      if (event.key !== LOGOUT_CACHE_CLEAR_SIGNAL_KEY || !event.newValue) return;
-      clearAppTemporaryCaches();
-    };
-
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+  const { auth, currentUserId, isAuthenticated, applyLoginSuccess, performLogout } = useAuthContext();
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -412,6 +321,18 @@ function AppShell() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || auth) return;
+    const expiredNotice = window.sessionStorage.getItem(AUTH_EXPIRED_NOTICE_KEY);
+    if (!expiredNotice) return;
+    setSelectedModuleWithStep('workflow');
+    setMainHubSectionWithStep('pipeline');
+    setActivePipelineId(null);
+    setActiveUserPipelineId(null);
+    setActiveDomainKey(null);
+    moveToPath('/login');
+  }, [auth]);
 
   const moveToPath = (path) => {
     if (typeof window === 'undefined') return;
@@ -1484,20 +1405,7 @@ function AppShell() {
     selectedModule !== 'workflow' || Boolean(activePipelineId) || Boolean(activeUserPipelineId);
 
   const handleLoginSuccess = (login) => {
-    const normalizedUser = login?.user
-      ? {
-          ...login.user,
-          id: login.user.id ?? login.user.userId ?? null,
-        }
-      : null;
-    const next = {
-      accessToken: login.accessToken,
-      tokenType: login.tokenType,
-      expiresIn: login.expiresIn,
-      user: normalizedUser,
-    };
-    saveAuthState(next);
-    setAuth(next);
+    applyLoginSuccess(login);
     setDataSourcesAuthRequired(false);
     setDataSourcesAuthMessage('');
     setUserPipelinesAuthRequired(false);
@@ -1524,14 +1432,7 @@ function AppShell() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    if (typeof window !== 'undefined') {
-      clearAppTemporaryCaches();
-      window.localStorage.setItem(LOGOUT_CACHE_CLEAR_SIGNAL_KEY, String(Date.now()));
-      window.localStorage.removeItem(LOGOUT_CACHE_CLEAR_SIGNAL_KEY);
-    }
-    clearAuthState();
-    setAuth(null);
+    await performLogout();
     setDataSources([]);
     setDataSourcesAuthRequired(true);
     setDataSourcesAuthMessage('로그인이 필요한 기능입니다.');
