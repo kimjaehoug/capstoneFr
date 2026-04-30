@@ -485,6 +485,7 @@ function AppShell() {
 
   useEffect(() => {
     if (!activeUserPipelineId) return;
+    if (workspaceStep === WORKSPACE_STEP_EXECUTION || workspaceStep === WORKSPACE_STEP_REPORT) return;
     const pl = userPipelines.find((p) => p.id === activeUserPipelineId);
     if (!pl) {
       setActiveUserPipelineId(null);
@@ -493,7 +494,7 @@ function AppShell() {
     if (selectedModule !== 'workflow' && !pl.moduleIds.includes(selectedModule)) {
       setSelectedModule('workflow');
     }
-  }, [activeUserPipelineId, userPipelines, selectedModule]);
+  }, [activeUserPipelineId, userPipelines, selectedModule, workspaceStep]);
 
   const activeUserPipeline = useMemo(
     () => userPipelines.find((p) => p.id === activeUserPipelineId) ?? null,
