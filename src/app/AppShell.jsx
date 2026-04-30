@@ -6,6 +6,8 @@ import SharedHubPage from '../pages/shared-hub/SharedHubPage';
 import OpsConsolePage from '../pages/ops-console/OpsConsolePage';
 import WorkspacePage from '../pages/workspace/WorkspacePage';
 import { useWorkspaceContext } from '../entities/workspace/model/workspaceContext';
+import { useWorkspaceUrlSync } from '../entities/workspace/model/urlSync';
+import { createWorkspaceProps } from '../pages/workspace/model/createWorkspaceProps';
 import { PIPELINES } from '../data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from '../data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from '../data/dataSources';
@@ -1550,7 +1552,7 @@ function AppShell() {
   const isWorkspaceRoute = currentPath.startsWith('/workspace');
   const isSharedHubRoute = currentPath.startsWith('/hub/shared');
   const isOpsConsoleRoute = currentPath.startsWith('/console/ops');
-  const workspaceProps = {
+  const workspaceProps = createWorkspaceProps({
     modules: ALL_MODULE_CATALOG,
     pipelines: templatePipelines,
     userPipelines,
@@ -1593,11 +1595,7 @@ function AppShell() {
     domainModuleNotes,
     onDomainModuleNoteChange: (moduleId, value) => setDomainModuleNotes((prev) => ({ ...prev, [moduleId]: value })),
     mainHubSection,
-    onMainHubSectionChange: (sectionId) => {
-      setMainHubSection(sectionId);
-      if (sectionId === 'data') setWorkspaceStep('data');
-      else setWorkspaceStep('pipeline');
-    },
+    onMainHubSectionChange: setMainHubSectionWithStep,
     dataSources,
     dataSourcesAuthRequired,
     dataSourcesAuthMessage,
@@ -1629,34 +1627,20 @@ function AppShell() {
     activeUserPipelineId,
     activeUserPipeline,
     onStartPipelineFromModule: startPipelineFromModule,
-  };
+  });
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !isWorkspaceRoute) return;
-    const params = new URLSearchParams(window.location.search);
-    const step = params.get('step');
-    if (step && ['data', 'pipeline', 'module', 'result'].includes(step)) {
-      setWorkspaceStep(step);
-    }
-    const dataSourceId = params.get('activeDataSourceId');
-    const pipelineId = params.get('activePipelineId');
-    const moduleId = params.get('activeModuleId');
-    if (dataSourceId) setActiveDataSourceId(dataSourceId);
-    if (pipelineId) setActivePipelineId(pipelineId);
-    if (moduleId) setSelectedModule(moduleId);
-  }, [isWorkspaceRoute]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !isWorkspaceRoute) return;
-    const params = new URLSearchParams();
-    params.set('step', workspaceStep);
-    if (activeDataSourceId) params.set('activeDataSourceId', activeDataSourceId);
-    if (activePipelineId) params.set('activePipelineId', activePipelineId);
-    if (selectedModule && selectedModule !== 'workflow') params.set('activeModuleId', selectedModule);
-    const query = params.toString();
-    const next = query ? `${currentPath}?${query}` : currentPath;
-    window.history.replaceState({}, '', next);
-  }, [isWorkspaceRoute, workspaceStep, activeDataSourceId, activePipelineId, selectedModule, currentPath]);
+  useWorkspaceUrlSync({
+    isWorkspaceRoute,
+    currentPath,
+    workspaceStep,
+    activeDataSourceId,
+    activePipelineId,
+    selectedModule,
+    setWorkspaceStep,
+    setActiveDataSourceId,
+    setActivePipelineId,
+    setSelectedModule,
+  });
 
   if (currentPath === '/login') {
     return (
