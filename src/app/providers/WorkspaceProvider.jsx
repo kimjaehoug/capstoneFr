@@ -9,6 +9,28 @@ function WorkspaceProvider({ children }) {
   const [selectedModule, setSelectedModule] = useState('workflow');
   const [mainHubSection, setMainHubSection] = useState('pipeline');
 
+  const setMainHubSectionWithStep = (sectionId) => {
+    setMainHubSection(sectionId);
+    if (sectionId === 'data') setWorkspaceStep('data');
+    else setWorkspaceStep('pipeline');
+  };
+
+  const setSelectedModuleWithStep = (moduleId) => {
+    setSelectedModule(moduleId);
+    if (moduleId === 'results') setWorkspaceStep('result');
+    else if (moduleId === 'workflow') setWorkspaceStep('pipeline');
+    else setWorkspaceStep('module');
+  };
+
+  const clearWorkspaceContext = () => {
+    setActiveDataSourceId(null);
+    setActivePipelineId(null);
+    setActiveUserPipelineId(null);
+    setSelectedModule('workflow');
+    setMainHubSection('pipeline');
+    setWorkspaceStep('pipeline');
+  };
+
   const value = useMemo(
     () => ({
       workspaceStep,
@@ -21,8 +43,11 @@ function WorkspaceProvider({ children }) {
       setActiveUserPipelineId,
       selectedModule,
       setSelectedModule,
+      setSelectedModuleWithStep,
       mainHubSection,
       setMainHubSection,
+      setMainHubSectionWithStep,
+      clearWorkspaceContext,
     }),
     [
       workspaceStep,
@@ -31,6 +56,9 @@ function WorkspaceProvider({ children }) {
       activeUserPipelineId,
       selectedModule,
       mainHubSection,
+      setMainHubSectionWithStep,
+      setSelectedModuleWithStep,
+      clearWorkspaceContext,
     ],
   );
 

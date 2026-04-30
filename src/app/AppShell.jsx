@@ -267,8 +267,11 @@ function AppShell() {
     setActiveUserPipelineId,
     selectedModule,
     setSelectedModule,
+    setSelectedModuleWithStep,
     mainHubSection,
     setMainHubSection,
+    setMainHubSectionWithStep,
+    clearWorkspaceContext,
   } = useWorkspaceContext();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -748,14 +751,13 @@ function AppShell() {
   const connectDataToPipeline = (pipelineId, dataSourceId) => {
     setActiveDataSourceId(dataSourceId ?? null);
     handleSelectPipeline(pipelineId);
-    setMainHubSection('pipeline');
+    setMainHubSectionWithStep('pipeline');
     setWorkspaceStep('pipeline');
   };
 
   /** 모듈/워크플로 전환만 담당. 파이프라인 선택은 handleSelectPipeline·onClearPipeline에서만 바꿈 */
   const handleSelectModule = (moduleId) => {
-    setSelectedModule(moduleId);
-    setWorkspaceStep(moduleId === 'results' ? 'result' : moduleId === 'workflow' ? 'pipeline' : 'module');
+    setSelectedModuleWithStep(moduleId);
   };
 
   useEffect(() => {
@@ -787,32 +789,23 @@ function AppShell() {
       result: 'success',
     });
     if (step === 'data') {
-      setSelectedModule('workflow');
-      setMainHubSection('data');
+      setSelectedModuleWithStep('workflow');
+      setMainHubSectionWithStep('data');
       return;
     }
     if (step === 'pipeline') {
-      setSelectedModule('workflow');
-      setMainHubSection(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
+      setSelectedModuleWithStep('workflow');
+      setMainHubSectionWithStep(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
       return;
     }
     if (step === 'result') {
-      setSelectedModule('results');
+      setSelectedModuleWithStep('results');
       return;
     }
     if (selectedModule === 'workflow') {
       const fallback = activePipeline?.moduleIds?.[0] || 'diagnosis';
-      setSelectedModule(fallback);
+      setSelectedModuleWithStep(fallback);
     }
-  };
-
-  const clearWorkspaceContext = () => {
-    setActiveDataSourceId(null);
-    setActivePipelineId(null);
-    setActiveUserPipelineId(null);
-    setSelectedModule('workflow');
-    setMainHubSection('pipeline');
-    setWorkspaceStep('pipeline');
   };
 
   const appendChat = (text) => {
