@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 const OPS_MODULE_CATEGORIES = [
   { id: 'diagnosis', title: '데이터 진단', aliases: ['diagnosis', '진단'] },
@@ -34,6 +34,8 @@ function OpsConsolePage({
   onDeleteUserPipeline,
   onOpenPipelineInWorkspace,
 }) {
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+
   const categoryCards = useMemo(() => {
     return OPS_MODULE_CATEGORIES.map((category) => {
       const snapshots = opsRows.filter(
@@ -47,6 +49,18 @@ function OpsConsolePage({
       };
     });
   }, [opsRows]);
+
+  const selectedCategory = useMemo(
+    () => OPS_MODULE_CATEGORIES.find((category) => category.id === selectedCategoryId) ?? null,
+    [selectedCategoryId],
+  );
+
+  const selectedCategoryTaskStates = useMemo(() => {
+    if (!selectedCategory) return [];
+    return opsRows.filter(
+      (row) => row.type === 'task-state' && matchesCategory(row, selectedCategory),
+    );
+  }, [opsRows, selectedCategory]);
 
   const handleEditDataSource = async (row) => {
     if (!onUpdateDataSource) return;
@@ -91,6 +105,7 @@ function OpsConsolePage({
           <option value="data-source">데이터소스</option>
           <option value="pipeline">파이프라인</option>
           <option value="module-snapshot">모듈 스냅샷</option>
+          <option value="task-state">작업 상태</option>
         </select>
         <button type="button" className="btn-primary-inline" onClick={onMoveWorkspace}>
           워크스페이스로 이동
@@ -99,7 +114,11 @@ function OpsConsolePage({
 
       <section className="ops-module-cards" aria-label="6단계 모듈 카테고리">
         {categoryCards.map((card, index) => (
-          <article key={card.id} className="ops-module-card">
+          <article
+            key={card.id}
+            className={`ops-module-card clickable ${selectedCategoryId === card.id ? 'active' : ''}`}
+            onClick={() => setSelectedCategoryId((prev) => (prev === card.id ? null : card.id))}
+          >
             <div className="ops-module-card-head">
               <span className="ops-module-card-index">{index + 1}</span>
               <h4>{card.title}</h4>
@@ -119,6 +138,43 @@ function OpsConsolePage({
           </article>
         ))}
       </section>
+
+      {selectedCategory ? (
+        <section className="card" aria-label={`${selectedCategory.title} 작업 상태`}>
+          <h4>{selectedCategory.title} 작업 상태</h4>
+          <p className="hub-hero-lead">단계 실행에서 발생한 최신 상태를 조회합니다.</p>
+          <div className="main-hub-table-wrap">
+            <table className="main-hub-table">
+              <thead>
+                <tr>
+                  <th>작업</th>
+                  <th>상태</th>
+                  <th>요약</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedCategoryTaskStates.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="main-hub-table-empty">
+                      해당 단계의 작업 상태가 아직 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  selectedCategoryTaskStates.map((row) => (
+                    <tr key={`task-${row.id}`}>
+                      <td>{row.name}</td>
+                      <td>
+                        <span className={`status-pill mini ${row.status || 'idle'}`}>{row.status || 'idle'}</span>
+                      </td>
+                      <td>{row.ref || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       <section className="ops-management-grid" aria-label="내 데이터/파이프라인 관리">
         <article className="card">

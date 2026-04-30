@@ -741,6 +741,15 @@ button.active {
   box-shadow: var(--shadow-card);
 }
 
+.ops-module-card.clickable {
+  cursor: pointer;
+}
+
+.ops-module-card.clickable.active {
+  border-color: #315b89;
+  box-shadow: 0 0 0 1px rgba(49, 91, 137, 0.24) inset;
+}
+
 .ops-module-card-head {
   display: flex;
   align-items: center;

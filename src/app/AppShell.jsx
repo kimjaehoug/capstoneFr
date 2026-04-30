@@ -534,14 +534,21 @@ function AppShell() {
       status: value?.savedAt ? `saved ${formatSavedTime(value.savedAt)}` : 'unsaved',
       ref: value?.summary || '-',
     }));
-    const merged = [...sourceRows, ...pipelineRows, ...moduleRows];
+    const taskStatusRows = Object.entries(taskRunStateById).map(([taskId, value]) => ({
+      type: 'task-state',
+      id: taskId,
+      name: ALL_MODULE_CATALOG.find((m) => m.id === taskId)?.label || taskId,
+      status: value?.status || 'idle',
+      ref: value?.summary || '-',
+    }));
+    const merged = [...sourceRows, ...pipelineRows, ...moduleRows, ...taskStatusRows];
     return merged.filter((row) => {
       const byType = opsType === 'all' || row.type === opsType;
       const q = opsQuery.trim().toLowerCase();
       const byQuery = !q || `${row.name} ${row.id} ${row.ref}`.toLowerCase().includes(q);
       return byType && byQuery;
     });
-  }, [dataSources, userPipelines, moduleMemory, opsType, opsQuery]);
+  }, [dataSources, userPipelines, moduleMemory, taskRunStateById, opsType, opsQuery]);
 
   const selectPipelineContext = (id) => {
     const resolved = [...templatePipelines, ...userPipelines].find((p) => p.id === id);
