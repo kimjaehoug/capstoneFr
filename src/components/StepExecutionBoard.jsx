@@ -33,6 +33,10 @@ function StepExecutionBoard({
     );
   }
 
+  const completionStates = new Set(['done', 'skipped']);
+  const firstLockedIndex = tasks.findIndex((task) => !completionStates.has(taskRunStateById[task.id]?.status));
+  const maxUnlockedIndex = firstLockedIndex === -1 ? tasks.length - 1 : firstLockedIndex;
+
   return (
     <section className="step-board" aria-label="단계별 작업 실행 보드">
       {lastStatusMessage ? <p className="step-board-status">{lastStatusMessage}</p> : null}
@@ -55,6 +59,7 @@ function StepExecutionBoard({
                     subTasks: fallbackSubTasks,
                   }
                 : null;
+            const isLocked = index > maxUnlockedIndex;
             return (
           <StepExecutionCard
             key={task.id}
@@ -63,6 +68,7 @@ function StepExecutionBoard({
             state={taskRunStateById[task.id]}
             isActive={activeTaskId === task.id}
             isLast={index === tasks.length - 1}
+            isLocked={isLocked}
             onSelect={onSelectTask}
             onExecute={onExecuteTask}
             onRetry={onRetryTask}

@@ -479,6 +479,11 @@ button.active {
   box-shadow: 0 0 0 1px rgba(49, 91, 137, 0.2) inset;
 }
 
+.step-card.locked {
+  opacity: 0.72;
+  background: #f8fafc;
+}
+
 .step-card-head {
   display: flex;
   justify-content: space-between;
@@ -501,6 +506,12 @@ button.active {
   margin: 8px 0 0;
   font-size: 12px;
   color: #516178;
+}
+
+.step-card-lock-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #7a5b24;
 }
 
 .step-card-meta {

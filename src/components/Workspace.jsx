@@ -616,7 +616,6 @@ function Workspace({
                   onApproveNextTask={onApproveNextTask}
                   onSkipTask={onSkipTask}
                 />
-                {content}
               </>
             )}
           </article>
