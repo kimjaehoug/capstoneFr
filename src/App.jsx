@@ -39,6 +39,7 @@ import {
 import {
   normalizeConnectedAfter,
 } from './utils/pipelineConnections';
+import { trackEvent } from './utils/analytics';
 
 const MODULES = [
   {
@@ -336,6 +337,7 @@ function App() {
       text: '보조 채팅 패널입니다. 예외 조건 수정이나 보조 지시를 입력하고, 주 작업은 중앙 모듈 캔버스에서 진행하세요.',
     },
   ]);
+  const [conflictInfo, setConflictInfo] = useState(null);
   const [auth, setAuth] = useState(() => loadAuthState());
   const currentUserId = getAuthUserId(auth);
   const isAuthenticated = Boolean(auth?.accessToken);
@@ -755,6 +757,13 @@ function App() {
 
   const handleWorkspaceStepChange = (step) => {
     setWorkspaceStep(step);
+    trackEvent('workspace_context_changed', {
+      userId: currentUserId,
+      pipelineId: activePipelineId,
+      moduleId: selectedModule,
+      step,
+      result: 'success',
+    });
     if (step === 'data') {
       setSelectedModule('workflow');
       setMainHubSection('data');
@@ -810,6 +819,43 @@ function App() {
         text,
       },
     ]);
+  };
+
+  const notifyApiFailure = (actionLabel, error, { retry } = {}) => {
+    if (!isApiError(error)) {
+      appendSystemMessage(`${actionLabel}에 실패했습니다. 다시 시도해주세요.`);
+      return;
+    }
+    if (error.status === 401) {
+      appendSystemMessage('로그인이 필요합니다. 다시 로그인해주세요.');
+      trackEvent('auth_required_prompted', {
+        userId: currentUserId,
+        pipelineId: activePipelineId,
+        moduleId: selectedModule,
+        step: workspaceStep,
+        result: 'fail',
+        errorCode: 401,
+      });
+      return;
+    }
+    if (error.status === 403) {
+      appendSystemMessage('권한이 없습니다. 본인 리소스인지 확인해주세요.');
+      return;
+    }
+    if (error.status === 409) {
+      setConflictInfo({ actionLabel, retry });
+      appendSystemMessage('동시 수정 충돌이 발생했습니다. 최신 상태를 불러오거나 다시 시도해주세요.');
+      trackEvent('conflict_detected_409', {
+        userId: currentUserId,
+        pipelineId: activeUserPipelineId || activePipelineId,
+        moduleId: selectedModule,
+        step: workspaceStep,
+        result: 'fail',
+        errorCode: 409,
+      });
+      return;
+    }
+    appendSystemMessage(`${actionLabel} 실패: ${error.message || '오류가 발생했습니다.'}`);
   };
 
   const copyTemplateToUser = async (templateId) => {
@@ -992,12 +1038,15 @@ function App() {
       setUserPipelines((prev) =>
         prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)),
       );
+      trackEvent('pipeline_module_added', {
+        userId: currentUserId,
+        pipelineId: activeUserPipelineId,
+        moduleId,
+        step: workspaceStep,
+        result: 'success',
+      });
     } catch (error) {
-      if (isApiError(error) && (error.status === 400 || error.status === 409)) {
-        appendSystemMessage(`모듈 추가 실패: ${error.message}`);
-        return;
-      }
-      appendSystemMessage('모듈 추가에 실패했습니다. 목록을 다시 불러옵니다.');
+      notifyApiFailure('모듈 추가', error, { retry: () => addModuleToUserPipeline(moduleId) });
       await reloadUserPipelines();
     }
   };
@@ -1010,12 +1059,15 @@ function App() {
       setUserPipelines((prev) =>
         prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)),
       );
+      trackEvent('pipeline_module_removed', {
+        userId: currentUserId,
+        pipelineId: activeUserPipelineId,
+        moduleId,
+        step: workspaceStep,
+        result: 'success',
+      });
     } catch (error) {
-      if (isApiError(error) && (error.status === 400 || error.status === 409)) {
-        appendSystemMessage(`모듈 삭제 실패: ${error.message}`);
-        return;
-      }
-      appendSystemMessage('모듈 삭제에 실패했습니다. 목록을 다시 불러옵니다.');
+      notifyApiFailure('모듈 삭제', error, { retry: () => removeModuleFromUserPipeline(moduleId) });
       await reloadUserPipelines();
     }
   };
@@ -1035,8 +1087,15 @@ function App() {
       setUserPipelines((prev) =>
         prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)),
       );
+      trackEvent('pipeline_module_reordered', {
+        userId: currentUserId,
+        pipelineId: activeUserPipelineId,
+        moduleId: item,
+        step: workspaceStep,
+        result: 'success',
+      });
     } catch (error) {
-      appendSystemMessage(`모듈 순서 변경 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      notifyApiFailure('모듈 순서 변경', error, { retry: () => moveModuleInUserPipeline(fromIndex, toIndex) });
       await reloadUserPipelines();
     }
   };
@@ -1065,8 +1124,15 @@ function App() {
       setUserPipelines((prev) =>
         prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(connected.pipeline) : p)),
       );
+      trackEvent('pipeline_connection_toggled', {
+        userId: currentUserId,
+        pipelineId: activeUserPipelineId,
+        moduleId: fromModuleId,
+        step: workspaceStep,
+        result: 'success',
+      });
     } catch (error) {
-      appendSystemMessage(`모듈 연결 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      notifyApiFailure('모듈 연결', error, { retry: () => connectModuleAfterInUserPipeline(fromModuleId, toModuleId) });
       await reloadUserPipelines();
     }
   };
@@ -1133,8 +1199,15 @@ function App() {
       setUserPipelines((prev) =>
         prev.map((p) => (p.id === activeUserPipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)),
       );
+      trackEvent('pipeline_connection_toggled', {
+        userId: currentUserId,
+        pipelineId: activeUserPipelineId,
+        moduleId,
+        step: workspaceStep,
+        result: 'success',
+      });
     } catch (error) {
-      appendSystemMessage(`연결 해제 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      notifyApiFailure('연결 해제', error, { retry: () => disconnectEdgeAfterInUserPipeline(afterIndex) });
       await reloadUserPipelines();
     }
   };
@@ -1533,6 +1606,33 @@ function App() {
         ) : null}
 
         <main className="workspace-area">
+          {conflictInfo ? (
+            <div className="conflict-banner">
+              <span>충돌 감지: {conflictInfo.actionLabel}</span>
+              <div className="conflict-banner-actions">
+                <button
+                  type="button"
+                  className="btn-secondary-inline"
+                  onClick={async () => {
+                    await reloadUserPipelines();
+                    setConflictInfo(null);
+                  }}
+                >
+                  최신 반영
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary-inline"
+                  onClick={async () => {
+                    await conflictInfo.retry?.();
+                    setConflictInfo(null);
+                  }}
+                >
+                  내 변경 재시도
+                </button>
+              </div>
+            </div>
+          ) : null}
           {isWorkspaceRoute ? (
             <>
               <WorkspaceContextBar

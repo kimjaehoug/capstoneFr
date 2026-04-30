@@ -318,6 +318,23 @@ button.active {
   font-size: 13px;
 }
 
+.conflict-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #e9b15c;
+  background: #fff8ef;
+  color: #7a4b11;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.conflict-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .app-topbar {
   height: 62px;
   display: flex;
