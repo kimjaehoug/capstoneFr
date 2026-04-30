@@ -1,4 +1,4 @@
-import { requestJson } from './client';
+import { requestJson } from '../../../api/client';
 
 function toQuery(params = {}) {
   const search = new URLSearchParams();

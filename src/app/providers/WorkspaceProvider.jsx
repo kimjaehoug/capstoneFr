@@ -1,8 +1,14 @@
 import { useMemo, useState } from 'react';
 import { WorkspaceContext } from '../../entities/workspace/model/workspaceContext';
+import {
+  WORKSPACE_STEP_DATA,
+  WORKSPACE_STEP_MODULE,
+  WORKSPACE_STEP_PIPELINE,
+  WORKSPACE_STEP_RESULT,
+} from '../../entities/workspace/model/workspaceStep';
 
 function WorkspaceProvider({ children }) {
-  const [workspaceStep, setWorkspaceStep] = useState('pipeline');
+  const [workspaceStep, setWorkspaceStep] = useState(WORKSPACE_STEP_PIPELINE);
   const [activeDataSourceId, setActiveDataSourceId] = useState(null);
   const [activePipelineId, setActivePipelineId] = useState(null);
   const [activeUserPipelineId, setActiveUserPipelineId] = useState(null);
@@ -11,15 +17,15 @@ function WorkspaceProvider({ children }) {
 
   const setMainHubSectionWithStep = (sectionId) => {
     setMainHubSection(sectionId);
-    if (sectionId === 'data') setWorkspaceStep('data');
-    else setWorkspaceStep('pipeline');
+    if (sectionId === WORKSPACE_STEP_DATA) setWorkspaceStep(WORKSPACE_STEP_DATA);
+    else setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
   };
 
   const setSelectedModuleWithStep = (moduleId) => {
     setSelectedModule(moduleId);
-    if (moduleId === 'results') setWorkspaceStep('result');
-    else if (moduleId === 'workflow') setWorkspaceStep('pipeline');
-    else setWorkspaceStep('module');
+    if (moduleId === 'results') setWorkspaceStep(WORKSPACE_STEP_RESULT);
+    else if (moduleId === 'workflow') setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
+    else setWorkspaceStep(WORKSPACE_STEP_MODULE);
   };
 
   const clearWorkspaceContext = () => {
@@ -27,8 +33,8 @@ function WorkspaceProvider({ children }) {
     setActivePipelineId(null);
     setActiveUserPipelineId(null);
     setSelectedModule('workflow');
-    setMainHubSection('pipeline');
-    setWorkspaceStep('pipeline');
+    setMainHubSection(WORKSPACE_STEP_PIPELINE);
+    setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
   };
 
   const value = useMemo(

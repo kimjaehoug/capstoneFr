@@ -6,10 +6,17 @@ import SharedHubPage from '../pages/shared-hub/SharedHubPage';
 import OpsConsolePage from '../pages/ops-console/OpsConsolePage';
 import WorkspacePage from '../pages/workspace/WorkspacePage';
 import AppModals from './components/AppModals';
+import { useDeleteConfirm } from './hooks/useDeleteConfirm';
 import { useWorkspaceContext } from '../entities/workspace/model/workspaceContext';
 import { useWorkspaceUrlSync } from '../entities/workspace/model/urlSync';
 import { useAuthContext } from '../entities/user/model/authState';
+import {
+  WORKSPACE_STEP_DATA,
+  WORKSPACE_STEP_PIPELINE,
+  WORKSPACE_STEP_RESULT,
+} from '../entities/workspace/model/workspaceStep';
 import { createWorkspaceProps } from '../pages/workspace/model/createWorkspaceProps';
+import { useWorkspaceActions } from '../pages/workspace/model/useWorkspaceActions';
 import { notifyApiFailure as notifyApiFailureModel } from '../features/conflict-recovery/model/notifyApiFailure';
 import {
   requireAuthForCrud as requireAuthForCrudModel,
@@ -25,11 +32,11 @@ import {
   listDataSources as listDataSourcesApi,
   updateDataSource as updateDataSourceApi,
   updateDataSourceLinkedPipeline as updateDataSourceLinkedPipelineApi,
-} from '../api/dataSources';
+} from '../features/data-sources/api/dataSourcesApi';
 import {
   getModuleSnapshot as getModuleSnapshotApi,
   saveModuleSnapshot as saveModuleSnapshotApi,
-} from '../api/moduleSnapshots';
+} from '../features/module-snapshots/api/moduleSnapshotsApi';
 import {
   addPipelineModule as addPipelineModuleApi,
   connectPipelineAfter as connectPipelineAfterApi,
@@ -44,7 +51,7 @@ import {
   reorderPipelineModules as reorderPipelineModulesApi,
   updatePipelineModulePosition as updatePipelineModulePositionApi,
   updatePipeline as updatePipelineApi,
-} from '../api/pipelines';
+} from '../features/pipelines/api/pipelinesApi';
 import {
   normalizeConnectedAfter,
 } from '../utils/pipelineConnections';
@@ -56,7 +63,13 @@ import {
   AUTH_REQUIRED_DRAFT_TTL_MS,
   USER_PIPELINES_KEY,
 } from '../shared/constants/storageKeys';
-import { normalizeAppPath, WORKSPACE_ROUTE } from '../shared/constants/routes';
+import {
+  LOGIN_ROUTE,
+  normalizeAppPath,
+  OPS_CONSOLE_ROUTE,
+  SHARED_HUB_ROUTE,
+  WORKSPACE_ROUTE,
+} from '../shared/constants/routes';
 import { formatDataSourceUpdated, formatSavedTime } from '../shared/lib/time/formatters';
 
 const MODULES = [
@@ -258,15 +271,9 @@ function AppShell() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState("");
-
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [pipelineToDelete, setPipelineToDelete] = useState(null);
   const [currentPath, setCurrentPath] = useState(() =>
     typeof window === 'undefined' ? WORKSPACE_ROUTE : normalizeAppPath(window.location.pathname || WORKSPACE_ROUTE)
   );
-
-  const [isDataDeleteModalOpen, setIsDataDeleteModalOpen] = useState(false);
-  const [dataSourceToDelete, setDataSourceToDelete] = useState(null);
 
   /** 사이드바 목록에서 한 번 클릭으로만 바뀌는 강조(설정 화면은 더블클릭) */
   const [moduleSidebarFocus, setModuleSidebarFocus] = useState('workflow');
@@ -336,7 +343,7 @@ function AppShell() {
     setActivePipelineId(null);
     setActiveUserPipelineId(null);
     setActiveDomainKey(null);
-    moveToPath('/login');
+    moveToPath(LOGIN_ROUTE);
   }, [auth]);
 
   const moveToPath = (path) => {
@@ -531,7 +538,7 @@ function AppShell() {
   const handleSelectPipeline = (id) => {
     setSelectedModule('workflow');
     setMainHubSection('pipeline');
-    setWorkspaceStep('pipeline');
+    setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
     setActivePipelineId(id);
     setActiveUserPipelineId(userPipelines.some((p) => p.id === id) ? id : null);
     const resolved = [...templatePipelines, ...userPipelines].find((p) => p.id === id);
@@ -664,7 +671,7 @@ function AppShell() {
     setActiveDataSourceId(dataSourceId ?? null);
     handleSelectPipeline(pipelineId);
     setMainHubSectionWithStep('pipeline');
-    setWorkspaceStep('pipeline');
+    setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
   };
 
   /** 모듈/워크플로 전환만 담당. 파이프라인 선택은 handleSelectPipeline·onClearPipeline에서만 바꿈 */
@@ -700,17 +707,17 @@ function AppShell() {
       step,
       result: 'success',
     });
-    if (step === 'data') {
+    if (step === WORKSPACE_STEP_DATA) {
       setSelectedModuleWithStep('workflow');
       setMainHubSectionWithStep('data');
       return;
     }
-    if (step === 'pipeline') {
+    if (step === WORKSPACE_STEP_PIPELINE) {
       setSelectedModuleWithStep('workflow');
       setMainHubSectionWithStep(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
       return;
     }
-    if (step === 'result') {
+    if (step === WORKSPACE_STEP_RESULT) {
       setSelectedModuleWithStep('results');
       return;
     }
@@ -1418,9 +1425,9 @@ function AppShell() {
     setActiveDomainKey(null);
   };
 
-  const isWorkspaceRoute = currentPath.startsWith('/workspace');
-  const isSharedHubRoute = currentPath.startsWith('/hub/shared');
-  const isOpsConsoleRoute = currentPath.startsWith('/console/ops');
+  const isWorkspaceRoute = currentPath.startsWith(WORKSPACE_ROUTE);
+  const isSharedHubRoute = currentPath.startsWith(SHARED_HUB_ROUTE);
+  const isOpsConsoleRoute = currentPath.startsWith(OPS_CONSOLE_ROUTE);
   const workspaceProps = createWorkspaceProps({
     modules: ALL_MODULE_CATALOG,
     pipelines: templatePipelines,
@@ -1482,7 +1489,7 @@ function AppShell() {
         step: workspaceStep,
         result: 'success',
       }),
-    onGoLogin: () => moveToPath('/login'),
+    onGoLogin: () => moveToPath(LOGIN_ROUTE),
     isAuthenticated,
     userPipelinesAuthRequired,
     userPipelinesAuthMessage,
@@ -1511,7 +1518,7 @@ function AppShell() {
     setSelectedModule,
   });
 
-  if (currentPath === '/login') {
+  if (currentPath === LOGIN_ROUTE) {
     return (
       <div className="app-root">
         <LoginPageContainer onMoveToPath={moveToPath} onLoginSuccess={handleLoginSuccess} />
@@ -1525,10 +1532,10 @@ function AppShell() {
         <button type="button" className={`workspace-top-nav-btn ${isWorkspaceRoute ? 'active' : ''}`} onClick={() => moveToPath(WORKSPACE_ROUTE)}>
           워크스페이스
         </button>
-        <button type="button" className={`workspace-top-nav-btn ${isSharedHubRoute ? 'active' : ''}`} onClick={() => moveToPath('/hub/shared')}>
+        <button type="button" className={`workspace-top-nav-btn ${isSharedHubRoute ? 'active' : ''}`} onClick={() => moveToPath(SHARED_HUB_ROUTE)}>
           공유 허브
         </button>
-        <button type="button" className={`workspace-top-nav-btn ${isOpsConsoleRoute ? 'active' : ''}`} onClick={() => moveToPath('/console/ops')}>
+        <button type="button" className={`workspace-top-nav-btn ${isOpsConsoleRoute ? 'active' : ''}`} onClick={() => moveToPath(OPS_CONSOLE_ROUTE)}>
           운영 콘솔
         </button>
       </header>
@@ -1548,8 +1555,8 @@ function AppShell() {
             mainHubSection={mainHubSection}
             onMainHubSectionChange={(id) => {
               setMainHubSection(id);
-              if (id === 'data') setWorkspaceStep('data');
-              else setWorkspaceStep('pipeline');
+              if (id === WORKSPACE_STEP_DATA) setWorkspaceStep(WORKSPACE_STEP_DATA);
+              else setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
               setActivePipelineId(null);
               setActiveUserPipelineId(null);
               setActiveDomainKey(null);

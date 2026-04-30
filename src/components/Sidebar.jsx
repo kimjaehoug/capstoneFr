@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ADDON_PARENT_ORDER, PARENT_CORE_LABELS } from '../data/domainModules';
+import { LOGIN_ROUTE } from '../shared/constants/routes';
 import './Sidebar.css';
 
 function CollapsibleSection({ id, title, count, open, onToggle, children }) {
@@ -90,7 +91,7 @@ function Sidebar({
                 <span className="top-auth-name">{auth.user.name || auth.user.email}</span>
                 <button type="button" className="global-login-btn logout" onClick={handleLogout}>로그아웃</button>
               </div>
-            ) : <button type="button" className="global-login-btn" onClick={() => moveToPath('/login')}>로그인</button>}
+            ) : <button type="button" className="global-login-btn" onClick={() => moveToPath(LOGIN_ROUTE)}>로그인</button>}
           </div>
         </div>
       </header>

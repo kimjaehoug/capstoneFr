@@ -1,3 +1,5 @@
+import { LOGIN_ROUTE } from '../../../shared/constants/routes';
+
 export function requireAuthForCrud(actionLabel = '이 작업', options = {}, deps) {
   const { cacheDraft = false } = options;
   const {
@@ -20,7 +22,7 @@ export function requireAuthForCrud(actionLabel = '이 작업', options = {}, dep
   const shouldMove = typeof window === 'undefined'
     ? true
     : window.confirm('로그인이 필요합니다. 로그인 화면으로 이동할까요?');
-  if (shouldMove) moveToPath('/login');
+  if (shouldMove) moveToPath(LOGIN_ROUTE);
   return false;
 }
 
@@ -43,6 +45,6 @@ export function requestLoginForDataFormDraft(draftPayload, deps) {
   const shouldMove = typeof window === 'undefined'
     ? true
     : window.confirm('로그인이 필요합니다. 로그인 화면으로 이동할까요?');
-  if (shouldMove) moveToPath('/login');
+  if (shouldMove) moveToPath(LOGIN_ROUTE);
   return false;
 }
