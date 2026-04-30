@@ -255,6 +255,7 @@ function buildModuleSummary(moduleId, state) {
 
 function AppShell() {
   const wasWorkspaceRouteRef = useRef(false);
+  const wasSharedHubRouteRef = useRef(false);
   const {
     workspaceStep,
     setWorkspaceStep,
@@ -1159,6 +1160,20 @@ function AppShell() {
     }
     wasWorkspaceRouteRef.current = true;
   }, [isWorkspaceRoute, setMainHubSection, setSelectedModule, setWorkspaceStep]);
+
+  useEffect(() => {
+    if (!isSharedHubRoute) {
+      wasSharedHubRouteRef.current = false;
+      return;
+    }
+    if (!wasSharedHubRouteRef.current) {
+      setActivePipelineId(null);
+      setActiveUserPipelineId(null);
+      setSelectedModule('workflow');
+      setNeedsExecutionPipelineSelection(false);
+    }
+    wasSharedHubRouteRef.current = true;
+  }, [isSharedHubRoute, setActivePipelineId, setActiveUserPipelineId, setSelectedModule]);
   const workspaceProps = createWorkspaceProps({
     modules: ALL_MODULE_CATALOG,
     pipelines: templatePipelines,

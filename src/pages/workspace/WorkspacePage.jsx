@@ -14,6 +14,12 @@ function WorkspacePage({
   onClearContext,
   workspaceProps,
 }) {
+  const isPipelineWorking = workspaceStep === 'pipeline' && Boolean(activePipeline);
+  const isExecutionWorking =
+    workspaceStep === 'execution' && !workspaceProps.needsExecutionPipelineSelection && Boolean(activePipeline);
+  const isReportWorking = workspaceStep === 'report' && Boolean(activePipeline);
+  const showStepTabs = !(isPipelineWorking || isExecutionWorking || isReportWorking);
+
   return (
     <>
       {conflictInfo ? (
@@ -30,14 +36,16 @@ function WorkspacePage({
         </div>
       ) : null}
 
-      <WorkspaceContextBar
-        workspaceStep={workspaceStep}
-        activeDataSource={activeDataSource}
-        activePipeline={activePipeline}
-        activeModule={activeModule}
-        onStepChange={onStepChange}
-        onClearContext={onClearContext}
-      />
+      {showStepTabs ? (
+        <WorkspaceContextBar
+          workspaceStep={workspaceStep}
+          activeDataSource={activeDataSource}
+          activePipeline={activePipeline}
+          activeModule={activeModule}
+          onStepChange={onStepChange}
+          onClearContext={onClearContext}
+        />
+      ) : null}
 
       <WorkspaceStatusPanel
         workspaceStep={workspaceStep}
