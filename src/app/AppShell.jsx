@@ -9,6 +9,11 @@ import { useWorkspaceContext } from '../entities/workspace/model/workspaceContex
 import { useWorkspaceUrlSync } from '../entities/workspace/model/urlSync';
 import { useAuthContext } from '../entities/user/model/authState';
 import { createWorkspaceProps } from '../pages/workspace/model/createWorkspaceProps';
+import { notifyApiFailure as notifyApiFailureModel } from '../features/conflict-recovery/model/notifyApiFailure';
+import {
+  requireAuthForCrud as requireAuthForCrudModel,
+  requestLoginForDataFormDraft as requestLoginForDataFormDraftModel,
+} from '../features/auth-gate/model/requireAuthForCrud';
 import { PIPELINES } from '../data/pipelines';
 import { DOMAIN_MODULES, DOMAIN_MODULE_IDS } from '../data/domainModules';
 import { DATA_SOURCES_KEY, loadDataSources } from '../data/dataSources';
@@ -383,38 +388,22 @@ function AppShell() {
     }
   };
 
-  const requireAuthForCrud = (actionLabel = '이 작업', { cacheDraft = false } = {}) => {
-    if (currentUserId) return true;
-    appendSystemMessage(`${actionLabel}은 로그인 후 사용할 수 있습니다.`);
-    if (cacheDraft && typeof window !== 'undefined') {
-      window.sessionStorage.setItem(
-        AUTH_REQUIRED_DRAFT_CACHE_KEY,
-        JSON.stringify({ cachedAt: new Date().toISOString(), draft: buildDraftCache() }),
-      );
-      appendSystemMessage('현재 작성 내용은 임시 보관되었습니다.');
-    }
-    const shouldMove = typeof window === 'undefined'
-      ? true
-      : window.confirm('로그인이 필요합니다. 로그인 화면으로 이동할까요?');
-    if (shouldMove) moveToPath('/login');
-    return false;
-  };
+  const requireAuthForCrud = (actionLabel = '이 작업', options = {}) =>
+    requireAuthForCrudModel(actionLabel, options, {
+      currentUserId,
+      appendSystemMessage,
+      buildDraftCache,
+      moveToPath,
+      draftCacheKey: AUTH_REQUIRED_DRAFT_CACHE_KEY,
+    });
 
-  const requestLoginForDataFormDraft = (draftPayload) => {
-    if (currentUserId) return true;
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(
-        AUTH_REQUIRED_DATA_FORM_CACHE_KEY,
-        JSON.stringify({ cachedAt: new Date().toISOString(), draft: draftPayload }),
-      );
-    }
-    appendSystemMessage('데이터 추가/수정 내용을 임시 보관했습니다.');
-    const shouldMove = typeof window === 'undefined'
-      ? true
-      : window.confirm('로그인이 필요합니다. 로그인 화면으로 이동할까요?');
-    if (shouldMove) moveToPath('/login');
-    return false;
-  };
+  const requestLoginForDataFormDraft = (draftPayload) =>
+    requestLoginForDataFormDraftModel(draftPayload, {
+      currentUserId,
+      appendSystemMessage,
+      moveToPath,
+      dataFormCacheKey: AUTH_REQUIRED_DATA_FORM_CACHE_KEY,
+    });
 
   useEffect(() => {
     localStorage.setItem(USER_PIPELINES_KEY, JSON.stringify(userPipelines));
@@ -759,42 +748,22 @@ function AppShell() {
     ]);
   };
 
-  const notifyApiFailure = (actionLabel, error, { retry } = {}) => {
-    if (!isApiError(error)) {
-      appendSystemMessage(`${actionLabel}에 실패했습니다. 다시 시도해주세요.`);
-      return;
-    }
-    if (error.status === 401) {
-      appendSystemMessage('로그인이 필요합니다. 다시 로그인해주세요.');
-      trackEvent('auth_required_prompted', {
-        userId: currentUserId,
-        pipelineId: activePipelineId,
-        moduleId: selectedModule,
-        step: workspaceStep,
-        result: 'fail',
-        errorCode: 401,
-      });
-      return;
-    }
-    if (error.status === 403) {
-      appendSystemMessage('권한이 없습니다. 본인 리소스인지 확인해주세요.');
-      return;
-    }
-    if (error.status === 409) {
-      setConflictInfo({ actionLabel, retry });
-      appendSystemMessage('동시 수정 충돌이 발생했습니다. 최신 상태를 불러오거나 다시 시도해주세요.');
-      trackEvent('conflict_detected_409', {
-        userId: currentUserId,
-        pipelineId: activeUserPipelineId || activePipelineId,
-        moduleId: selectedModule,
-        step: workspaceStep,
-        result: 'fail',
-        errorCode: 409,
-      });
-      return;
-    }
-    appendSystemMessage(`${actionLabel} 실패: ${error.message || '오류가 발생했습니다.'}`);
-  };
+  const notifyApiFailure = (actionLabel, error, options = {}) =>
+    notifyApiFailureModel(
+      actionLabel,
+      error,
+      {
+        appendSystemMessage,
+        setConflictInfo,
+        trackEvent,
+        currentUserId,
+        activeUserPipelineId,
+        activePipelineId,
+        selectedModule,
+        workspaceStep,
+      },
+      options,
+    );
 
   const copyTemplateToUser = async (templateId) => {
     if (!requireAuthForCrud('템플릿 복사')) return;
