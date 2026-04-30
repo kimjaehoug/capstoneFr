@@ -40,6 +40,17 @@ import {
   normalizeConnectedAfter,
 } from './utils/pipelineConnections';
 import { trackEvent } from './utils/analytics';
+import {
+  APP_CACHE_PREFIXES,
+  AUTH_EXPIRED_NOTICE_KEY,
+  AUTH_REQUIRED_DATA_FORM_CACHE_KEY,
+  AUTH_REQUIRED_DRAFT_CACHE_KEY,
+  AUTH_REQUIRED_DRAFT_TTL_MS,
+  LOGOUT_CACHE_CLEAR_SIGNAL_KEY,
+  USER_PIPELINES_KEY,
+} from './shared/constants/storageKeys';
+import { normalizeAppPath, WORKSPACE_ROUTE } from './shared/constants/routes';
+import { formatDataSourceUpdated, formatSavedTime } from './shared/lib/time/formatters';
 
 const MODULES = [
   {
@@ -109,22 +120,8 @@ const SAVEABLE_MODULES = [
   ...DOMAIN_MODULE_IDS,
 ];
 
-const USER_PIPELINES_KEY = 'ai-workbench-user-pipelines';
-const AUTH_EXPIRED_NOTICE_KEY = 'stage-one-auth-expired-notice';
-const AUTH_REQUIRED_DRAFT_CACHE_KEY = 'stage-one-auth-required-draft';
-const AUTH_REQUIRED_DATA_FORM_CACHE_KEY = 'stage-one-auth-required-data-form';
-const AUTH_REQUIRED_DRAFT_TTL_MS = 30 * 60 * 1000;
-const APP_CACHE_PREFIXES = ['stage-one-', 'ai-workbench-'];
-const LOGOUT_CACHE_CLEAR_SIGNAL_KEY = 'stage-one-logout-cache-clear-signal';
-const TOP_LEVEL_ROUTES = ['/workspace', '/hub/shared', '/console/ops'];
 function getAuthUserId(auth) {
   return auth?.user?.id ?? auth?.user?.userId ?? null;
-}
-
-function normalizeAppPath(path) {
-  if (TOP_LEVEL_ROUTES.some((route) => path.startsWith(route))) return path;
-  if (path === '/login') return '/login';
-  return '/workspace';
 }
 
 function clearAppTemporaryCaches() {
@@ -176,23 +173,6 @@ function loadUserPipelines() {
   }
 }
 
-function formatSavedTime(isoDate) {
-  if (!isoDate) return '-';
-  return new Date(isoDate).toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatDataSourceUpdated(isoDate) {
-  if (!isoDate) return '-';
-  return new Date(isoDate).toLocaleString('ko-KR', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function mapDataSourceRecordToRow(record) {
   return {
@@ -282,7 +262,7 @@ function App() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pipelineToDelete, setPipelineToDelete] = useState(null);
   const [currentPath, setCurrentPath] = useState(() =>
-    typeof window === 'undefined' ? '/workspace' : normalizeAppPath(window.location.pathname || '/workspace')
+    typeof window === 'undefined' ? WORKSPACE_ROUTE : normalizeAppPath(window.location.pathname || WORKSPACE_ROUTE)
   );
 
   const [isDataDeleteModalOpen, setIsDataDeleteModalOpen] = useState(false);
@@ -410,7 +390,7 @@ function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const handlePopState = () => {
-      setCurrentPath(normalizeAppPath(window.location.pathname || '/workspace'));
+      setCurrentPath(normalizeAppPath(window.location.pathname || WORKSPACE_ROUTE));
     };
     window.addEventListener('popstate', handlePopState);
     return () => {
@@ -1535,7 +1515,7 @@ function App() {
         window.sessionStorage.removeItem(AUTH_REQUIRED_DRAFT_CACHE_KEY);
       }
     }
-    moveToPath('/workspace');
+    moveToPath(WORKSPACE_ROUTE);
   };
 
   const handleLogout = async () => {
@@ -1556,7 +1536,7 @@ function App() {
   };
 
   const handleGoHome = () => {
-    moveToPath('/workspace');
+    moveToPath(WORKSPACE_ROUTE);
     setSelectedModule('workflow');
     setMainHubSection('pipeline');
     setActivePipelineId(null);
@@ -1598,7 +1578,7 @@ function App() {
   if (currentPath === '/login') {
     return (
       <div className="app-root">
-        <LoginPage onBack={() => moveToPath('/workspace')} onLoginSuccess={handleLoginSuccess} />
+        <LoginPage onBack={() => moveToPath(WORKSPACE_ROUTE)} onLoginSuccess={handleLoginSuccess} />
       </div>
     );
   }
@@ -1606,7 +1586,7 @@ function App() {
   return (
     <div className="app-root">
       <header className="workspace-top-nav">
-        <button type="button" className={`workspace-top-nav-btn ${isWorkspaceRoute ? 'active' : ''}`} onClick={() => moveToPath('/workspace')}>
+        <button type="button" className={`workspace-top-nav-btn ${isWorkspaceRoute ? 'active' : ''}`} onClick={() => moveToPath(WORKSPACE_ROUTE)}>
           워크스페이스
         </button>
         <button type="button" className={`workspace-top-nav-btn ${isSharedHubRoute ? 'active' : ''}`} onClick={() => moveToPath('/hub/shared')}>
