@@ -159,13 +159,6 @@ function Workspace({
     summary: taskRunStateById[task.id]?.summary || '',
   }));
 
-  const showModuleBack = !isMainHubRoot && displayModuleId !== 'workflow';
-  const showPipelineHubBack = displayModuleId === 'workflow' && Boolean(activePipeline);
-  const showMainHubSectionBack =
-    isMainHubRoot &&
-    workspaceStep !== 'data' &&
-    mainHubSection !== 'pipeline' &&
-    typeof onMainHubSectionChange === 'function';
 
   const renderPipelineHub = (tpls, usrs) => (
   <PipelineHub
@@ -461,23 +454,7 @@ function Workspace({
         mode={mode}
       />
       {showWorkspaceHeader && (
-        <header
-          className={`workspace-header ${showModuleBack || showPipelineHubBack ? 'workspace-header--has-back' : ''}`}
-        >
-          {(showModuleBack || showPipelineHubBack) && (
-            <div className="workspace-header-back">
-              <button
-                type="button"
-                className="btn-ghost-back"
-                onClick={showPipelineHubBack ? onClearPipeline : () => onSelectModule('workflow')}
-              >
-                <span className="btn-ghost-back-icon" aria-hidden>
-                  ←
-                </span>
-                {showPipelineHubBack ? '파이프라인 허브로' : '뒤로'}
-              </button>
-            </div>
-          )}
+        <header className="workspace-header">
           <div className="workspace-header-main">
             <div>
               <h2>{headerTitle}</h2>
@@ -563,20 +540,6 @@ function Workspace({
             <p>여기서는 파이프라인 편집 없이, 선택한 파이프라인의 단계 실행만 진행합니다.</p>
           </div>
         )}
-        {showMainHubSectionBack ? (
-          <div className="workspace-subnav">
-            <button
-              type="button"
-              className="btn-ghost-back"
-              onClick={() => onMainHubSectionChange('pipeline')}
-            >
-              <span className="btn-ghost-back-icon" aria-hidden>
-                ←
-              </span>
-              파이프라인 조회로
-            </button>
-          </div>
-        ) : null}
         {isStepExecutionView ? (
           <article className="step-execution-card">
             <header className="step-execution-card-header">

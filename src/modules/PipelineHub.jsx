@@ -59,12 +59,6 @@ function PipelineHub({
     return (
       <div className="pipeline-detail">
         <div className="pipeline-hub-toolbar">
-          <button type="button" className="btn-ghost-back" onClick={onClearPipeline}>
-            <span className="btn-ghost-back-icon" aria-hidden>
-              ←
-            </span>
-            파이프라인 허브
-          </button>
           <div className="pipeline-toolbar-pills">
             <span className="domain-pill">{active.domainLabel}</span>
             {activeIsUser ? (
