@@ -140,7 +140,10 @@ function Workspace({
   const showModuleBack = !isMainHubRoot && displayModuleId !== 'workflow';
   const showPipelineHubBack = displayModuleId === 'workflow' && Boolean(activePipeline);
   const showMainHubSectionBack =
-    isMainHubRoot && mainHubSection !== 'pipeline' && typeof onMainHubSectionChange === 'function';
+    isMainHubRoot &&
+    workspaceStep !== 'data' &&
+    mainHubSection !== 'pipeline' &&
+    typeof onMainHubSectionChange === 'function';
 
   const renderPipelineHub = (tpls, usrs) => (
   <PipelineHub
