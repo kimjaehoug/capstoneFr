@@ -636,7 +636,7 @@ function App() {
       return true;
     } catch (error) {
       if (isApiError(error)) {
-        if (error.status === 400 || error.status === 409) {
+        if (error.status === 400) {
           appendSystemMessage(`데이터소스 등록 실패: ${error.message}`);
           return false;
         }
@@ -645,7 +645,7 @@ function App() {
           return false;
         }
       }
-      appendSystemMessage('데이터소스 등록 중 오류가 발생했습니다. 다시 시도해주세요.');
+      notifyApiFailure('데이터소스 등록', error);
       return false;
     }
   };
@@ -683,12 +683,12 @@ function App() {
           await reloadDataSources();
           return false;
         }
-        if (error.status === 400 || error.status === 409) {
+        if (error.status === 400) {
           appendSystemMessage(`데이터소스 수정 실패: ${error.message}`);
           return false;
         }
       }
-      appendSystemMessage('데이터소스 수정 중 오류가 발생했습니다. 다시 시도해주세요.');
+      notifyApiFailure('데이터소스 수정', error);
       return false;
     }
   };
@@ -719,7 +719,7 @@ function App() {
         setDataSourceToDelete(null);
         return;
       }
-      appendSystemMessage('삭제에 실패했습니다. 다시 시도해주세요.');
+      notifyApiFailure('데이터 삭제', error, { retry: confirmDataDelete });
     }
   };
 
@@ -875,7 +875,7 @@ function App() {
       setActiveDomainKey(pipeline.domainKey);
       appendSystemMessage(`내 파이프라인 "${pipeline.title}"이(가) 만들어졌습니다.`);
     } catch (error) {
-      appendSystemMessage(`템플릿 복사 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      notifyApiFailure('템플릿 복사', error, { retry: () => copyTemplateToUser(templateId) });
     }
   };
 
@@ -901,7 +901,7 @@ function App() {
         await reloadUserPipelines();
         return false;
       }
-      appendSystemMessage(`파이프라인 수정 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      notifyApiFailure('파이프라인 수정', error, { retry: () => updateUserPipeline(id, { title, description, clearAutoNamed }) });
       return false;
     }
   };
@@ -964,7 +964,7 @@ function App() {
       }
       return true;
     } catch (error) {
-      appendSystemMessage(`파이프라인 생성 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      notifyApiFailure('파이프라인 생성', error, { retry: () => createPipelineAndLinkData(input) });
       return false;
     }
   };
@@ -986,7 +986,7 @@ function App() {
       setSelectedModule('workflow');
       appendSystemMessage(`파이프라인 "${copy.title}"이(가) 복사되었습니다.`);
     } catch (error) {
-      appendSystemMessage(`파이프라인 복제 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      notifyApiFailure('파이프라인 복제', error, { retry: () => duplicateUserPipeline(pipelineId) });
     }
   };
 
@@ -1023,7 +1023,7 @@ function App() {
         setPipelineToDelete(null);
         return;
       }
-      appendSystemMessage('파이프라인 삭제에 실패했습니다. 다시 시도해주세요.');
+      notifyApiFailure('파이프라인 삭제', error, { retry: confirmDelete });
     }
   };
 
@@ -1182,7 +1182,7 @@ function App() {
       setMainHubSection('pipeline');
       appendSystemMessage(`「${def.label}」로 시작하는 파이프라인을 만들었습니다.`);
     } catch (error) {
-      appendSystemMessage(`파이프라인 생성 실패: ${error?.message || '오류가 발생했습니다.'}`);
+      notifyApiFailure('파이프라인 생성', error, { retry: () => startPipelineFromModule(moduleId) });
     }
   };
 
@@ -1219,7 +1219,7 @@ function App() {
       setUserPipelines((prev) => prev.map((p) => (p.id === pipelineId ? mapPipelineRecordToUi(updated.pipeline) : p)));
     } catch (error) {
       if (isApiError(error) && error.status === 400) return;
-      appendSystemMessage('모듈 위치 저장에 실패했습니다.');
+      notifyApiFailure('모듈 위치 저장', error, { retry: () => setUserPipelineModulePosition(pipelineId, moduleId, pos) });
     }
   };
 
