@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import ChatPanel from '../components/ChatPanel';
 import LoginPageContainer from '../pages/login/LoginPageContainer';
@@ -254,6 +254,7 @@ function buildModuleSummary(moduleId, state) {
 }
 
 function AppShell() {
+  const wasWorkspaceRouteRef = useRef(false);
   const {
     workspaceStep,
     setWorkspaceStep,
@@ -541,16 +542,28 @@ function AppShell() {
     });
   }, [dataSources, userPipelines, moduleMemory, opsType, opsQuery]);
 
-  const handleSelectPipeline = (id) => {
+  const selectPipelineContext = (id) => {
     const resolved = [...templatePipelines, ...userPipelines].find((p) => p.id === id);
-    const firstTask = resolved?.moduleIds?.find((moduleId) => moduleId !== 'workflow');
-    setSelectedModule('workflow');
-    setMainHubSection('pipeline');
-    setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
     setActivePipelineId(id);
     setActiveUserPipelineId(userPipelines.some((p) => p.id === id) ? id : null);
     setActiveDomainKey(resolved?.domainKey ?? null);
+    return resolved;
+  };
+
+  const handleSelectPipeline = (id) => {
+    selectPipelineContext(id);
+    setSelectedModule('workflow');
+    setMainHubSection('pipeline');
+    setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
+  };
+
+  const handleSelectPipelineForExecution = (id) => {
+    const resolved = selectPipelineContext(id);
+    const firstTask = resolved?.moduleIds?.find((moduleId) => moduleId !== 'workflow');
+    setMainHubSection('pipeline');
+    setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
     if (firstTask) setSelectedModule(firstTask);
+    else setSelectedModule('workflow');
   };
 
 
@@ -595,6 +608,17 @@ function AppShell() {
     if (step === WORKSPACE_STEP_PIPELINE) {
       setSelectedModuleWithStep('workflow');
       setMainHubSectionWithStep(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
+      return;
+    }
+    if (step === WORKSPACE_STEP_EXECUTION) {
+      if (!activePipelineId && !activeUserPipelineId) {
+        setSelectedModule('workflow');
+        return;
+      }
+      if (selectedModule === 'workflow') {
+        const fallback = activePipeline?.moduleIds?.[0] || 'diagnosis';
+        setSelectedModuleWithStep(fallback);
+      }
       return;
     }
     if (step === WORKSPACE_STEP_REPORT) {
@@ -1077,6 +1101,19 @@ function AppShell() {
   const isWorkspaceRoute = currentPath.startsWith(WORKSPACE_ROUTE);
   const isSharedHubRoute = currentPath.startsWith(SHARED_HUB_ROUTE);
   const isOpsConsoleRoute = currentPath.startsWith(OPS_CONSOLE_ROUTE);
+
+  useEffect(() => {
+    if (!isWorkspaceRoute) {
+      wasWorkspaceRouteRef.current = false;
+      return;
+    }
+    if (!wasWorkspaceRouteRef.current) {
+      setWorkspaceStep(WORKSPACE_STEP_DATA);
+      setMainHubSectionWithStep('data');
+      setSelectedModule('workflow');
+    }
+    wasWorkspaceRouteRef.current = true;
+  }, [isWorkspaceRoute, setMainHubSectionWithStep, setSelectedModule, setWorkspaceStep]);
   const workspaceProps = createWorkspaceProps({
     modules: ALL_MODULE_CATALOG,
     pipelines: templatePipelines,
@@ -1084,6 +1121,7 @@ function AppShell() {
     activePipelineId,
     workspaceStep,
     onSelectPipeline: handleSelectPipeline,
+    onSelectPipelineForExecution: handleSelectPipelineForExecution,
     onClearPipeline: () => {
       setActivePipelineId(null);
       setActiveUserPipelineId(null);

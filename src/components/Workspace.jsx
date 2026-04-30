@@ -26,6 +26,7 @@ function Workspace({
   userPipelines,
   activePipelineId,
   onSelectPipeline,
+  onSelectPipelineForExecution,
   onClearPipeline,
   onCopyTemplateToUser,
   onDuplicateUserPipeline,
@@ -121,6 +122,8 @@ function Workspace({
     .map((id) => modules.find((m) => m.id === id))
     .filter(Boolean);
 
+  const executionPipelineChoices = [...userPipelines, ...pipelines];
+
   const showModuleBack = !isMainHubRoot && selectedModule !== 'workflow';
   const showPipelineHubBack = selectedModule === 'workflow' && Boolean(activePipeline);
   const showMainHubSectionBack =
@@ -151,6 +154,65 @@ function Workspace({
   />
 );
 
+  const renderPipelineComposeLanding = () => {
+    const recommendedTemplates = pipelines.slice(0, 3);
+    const recentUserPipelines = userPipelines.slice(-3).reverse();
+
+    return (
+      <section className="pipeline-compose-landing">
+        <div className="pipeline-compose-section">
+          <h4>내 작업용 파이프라인 구성</h4>
+          <p>선택한 흐름을 확정하고 단계 실행으로 넘어갑니다.</p>
+        </div>
+
+        <div className="pipeline-compose-grid">
+          <article className="card compact">
+            <h4>추천 파이프라인</h4>
+            {recommendedTemplates.length === 0 ? (
+              <p>추천할 템플릿이 없습니다.</p>
+            ) : (
+              <div className="button-row">
+                {recommendedTemplates.map((tpl) => (
+                  <button key={tpl.id} type="button" className="btn-secondary-inline" onClick={() => onSelectPipeline(tpl.id)}>
+                    {tpl.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </article>
+
+          <article className="card compact">
+            <h4>최근 내 파이프라인</h4>
+            {recentUserPipelines.length === 0 ? (
+              <p>아직 만든 파이프라인이 없습니다.</p>
+            ) : (
+              <div className="button-row">
+                {recentUserPipelines.map((pl) => (
+                  <button key={pl.id} type="button" className="btn-secondary-inline" onClick={() => onSelectPipeline(pl.id)}>
+                    {pl.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </article>
+
+          <article className="card compact">
+            <h4>새 파이프라인 만들기</h4>
+            <p>데이터 선택 화면에서 새 파이프라인을 만들며 연결할 수 있습니다.</p>
+            <div className="button-row">
+              <button type="button" className="btn-primary-inline" onClick={() => onMainHubSectionChange?.('data')}>
+                데이터 선택으로 이동
+              </button>
+              <button type="button" className="btn-secondary-inline" onClick={() => onMainHubSectionChange?.('pipeline-templates')}>
+                템플릿에서 가져오기
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+    );
+  };
+
   let content = null;
   if (selectedModule === 'workflow') {
     if (isMainHubRoot) {
@@ -176,7 +238,33 @@ function Workspace({
         content = (
           <MainHubModuleView modules={modules} moduleStatus={moduleStatus} onOpenModule={onSelectModule} />
         );
-      } 
+      }
+      else if (mainHubSection === 'pipeline-templates') {
+        content = (
+          <PipelineHub
+            templatePipelines={pipelines}
+            userPipelines={[]}
+            modules={modules}
+            moduleStatus={moduleStatus}
+            moduleMemory={moduleMemory}
+            activePipelineId={activePipelineId}
+            onSelectPipeline={onSelectPipeline}
+            onClearPipeline={onClearPipeline}
+            onStartModule={onSelectModule}
+            onCopyTemplateToUser={onCopyTemplateToUser}
+            onDuplicateUserPipeline={onDuplicateUserPipeline}
+            onDeleteUserPipeline={onDeleteUserPipeline}
+            onUpdateUserPipeline={onUpdateUserPipeline}
+            onMoveModuleInUserPipeline={onMoveModuleInUserPipeline}
+            onRemoveModuleFromUserPipeline={onRemoveModuleFromUserPipeline}
+            onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
+            onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
+            onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
+            userPipelinesAuthRequired={userPipelinesAuthRequired}
+            userPipelinesAuthMessage={userPipelinesAuthMessage}
+          />
+        );
+      }
       else if (mainHubSection === 'pipeline-mine') {
         content = (
           <PipelineHub
@@ -203,30 +291,7 @@ function Workspace({
           />
         );
       } else {
-        content = (
-          <PipelineHub
-            templatePipelines={pipelines}
-            userPipelines={[]} 
-            modules={modules}
-            moduleStatus={moduleStatus}
-            moduleMemory={moduleMemory}
-            activePipelineId={activePipelineId}
-            onSelectPipeline={onSelectPipeline}
-            onClearPipeline={onClearPipeline}
-            onStartModule={onSelectModule}
-            onCopyTemplateToUser={onCopyTemplateToUser}
-            onDuplicateUserPipeline={onDuplicateUserPipeline}
-            onDeleteUserPipeline={onDeleteUserPipeline}
-            onUpdateUserPipeline={onUpdateUserPipeline}
-            onMoveModuleInUserPipeline={onMoveModuleInUserPipeline}
-            onRemoveModuleFromUserPipeline={onRemoveModuleFromUserPipeline}
-            onSetUserPipelineModulePosition={onSetUserPipelineModulePosition}
-            onConnectModuleAfterInUserPipeline={onConnectModuleAfterInUserPipeline}
-            onDisconnectEdgeAfterInUserPipeline={onDisconnectEdgeAfterInUserPipeline}
-            userPipelinesAuthRequired={userPipelinesAuthRequired}
-            userPipelinesAuthMessage={userPipelinesAuthMessage}
-          />
-        );
+        content = renderPipelineComposeLanding();
       }
     } else {
       content = renderPipelineHub(pipelines, userPipelines);
@@ -384,26 +449,38 @@ function Workspace({
           )}
         </header>
       )}
-      <section className={`workspace-content ${isMainHubRoot ? 'workspace-content--main-hub' : ''}`}>
-        <div className="workspace-mode-switch" role="group" aria-label="워크스페이스 모드">
-          <button
-            type="button"
-            className={`workspace-mode-switch-btn ${mode === 'beginner' ? 'active' : ''}`}
-            onClick={() => onModeChange?.('beginner')}
-          >
-            초급 모드
-          </button>
-          <button
-            type="button"
-            className={`workspace-mode-switch-btn ${mode === 'edit' ? 'active' : ''}`}
-            onClick={() => onModeChange?.('edit')}
-          >
-            편집 모드
-          </button>
-          {mode === 'edit' ? (
-            <p className="workspace-mode-guide">처음 사용하는 경우 기본 구성을 먼저 실행해보는 것을 권장합니다.</p>
-          ) : null}
-        </div>
+      <section
+        className={`workspace-content ${isMainHubRoot ? 'workspace-content--main-hub' : ''} ${
+          isStepExecutionView ? 'workspace-content--execution' : 'workspace-content--compose'
+        }`}
+      >
+        {!isStepExecutionView ? (
+          <div className="workspace-mode-switch" role="group" aria-label="워크스페이스 모드">
+            <span className="workspace-mode-badge">파이프라인 구성 모드</span>
+            <button
+              type="button"
+              className={`workspace-mode-switch-btn ${mode === 'beginner' ? 'active' : ''}`}
+              onClick={() => onModeChange?.('beginner')}
+            >
+              초급 모드
+            </button>
+            <button
+              type="button"
+              className={`workspace-mode-switch-btn ${mode === 'edit' ? 'active' : ''}`}
+              onClick={() => onModeChange?.('edit')}
+            >
+              편집 모드
+            </button>
+            {mode === 'edit' ? (
+              <p className="workspace-mode-guide">처음 사용하는 경우 기본 구성을 먼저 실행해보는 것을 권장합니다.</p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="workspace-execution-headline">
+            <span className="workspace-mode-badge workspace-mode-badge--execution">단계 실행 모드</span>
+            <p>여기서는 파이프라인 편집 없이, 선택한 파이프라인의 단계 실행만 진행합니다.</p>
+          </div>
+        )}
         {showMainHubSectionBack ? (
           <div className="workspace-subnav">
             <button
@@ -424,18 +501,42 @@ function Workspace({
               <h3>작업 단계 실행</h3>
               <p>단계별로 실행하고 검토한 뒤 승인하여 다음 단계로 진행하세요.</p>
             </header>
-            <StepExecutionBoard
-              tasks={executionTasks}
-              activeTaskId={selectedModule}
-              taskRunStateById={taskRunStateById}
-              lastStatusMessage={lastStatusMessage}
-              onSelectTask={onSelectModule}
-              onExecuteTask={onExecuteTask}
-              onRetryTask={onRetryTask}
-              onApproveNextTask={onApproveNextTask}
-              onSkipTask={onSkipTask}
-            />
-            {content}
+            {!activePipeline && !activeUserPipeline ? (
+              <section className="step-board-empty">
+                <p>먼저 실행할 파이프라인을 선택해주세요.</p>
+                <div className="button-row">
+                  {executionPipelineChoices.length === 0 ? (
+                    <span className="ops-module-candidate-empty">선택 가능한 파이프라인이 없습니다.</span>
+                  ) : (
+                    executionPipelineChoices.map((pl) => (
+                      <button
+                        key={pl.id}
+                        type="button"
+                        className="btn-secondary-inline"
+                        onClick={() => (onSelectPipelineForExecution || onSelectPipeline)(pl.id)}
+                      >
+                        {pl.title}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </section>
+            ) : (
+              <>
+                <StepExecutionBoard
+                  tasks={executionTasks}
+                  activeTaskId={selectedModule}
+                  taskRunStateById={taskRunStateById}
+                  lastStatusMessage={lastStatusMessage}
+                  onSelectTask={onSelectModule}
+                  onExecuteTask={onExecuteTask}
+                  onRetryTask={onRetryTask}
+                  onApproveNextTask={onApproveNextTask}
+                  onSkipTask={onSkipTask}
+                />
+                {content}
+              </>
+            )}
           </article>
         ) : content}
       </section>
