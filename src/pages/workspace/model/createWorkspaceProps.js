@@ -4,6 +4,7 @@ export function createWorkspaceProps(input) {
     pipelines,
     userPipelines,
     activePipelineId,
+    workspaceStep,
     onSelectPipeline,
     onClearPipeline,
     onCopyTemplateToUser,
@@ -63,6 +64,14 @@ export function createWorkspaceProps(input) {
     activeUserPipelineId,
     activeUserPipeline,
     onStartPipelineFromModule,
+    mode,
+    taskRunStateById,
+    lastStatusMessage,
+    onModeChange,
+    onExecuteTask,
+    onRetryTask,
+    onApproveNextTask,
+    onSkipTask,
   } = input;
 
   return {
@@ -70,6 +79,7 @@ export function createWorkspaceProps(input) {
     pipelines,
     userPipelines,
     activePipelineId,
+    workspaceStep,
     onSelectPipeline,
     onClearPipeline,
     onCopyTemplateToUser,
@@ -129,5 +139,13 @@ export function createWorkspaceProps(input) {
     activeUserPipelineId,
     activeUserPipeline,
     onStartPipelineFromModule,
+    mode,
+    taskRunStateById,
+    lastStatusMessage,
+    onModeChange,
+    onExecuteTask,
+    onRetryTask,
+    onApproveNextTask,
+    onSkipTask,
   };
 }

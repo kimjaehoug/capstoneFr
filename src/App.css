@@ -335,6 +335,180 @@ button.active {
   gap: 8px;
 }
 
+.workspace-status-panel {
+  margin: 12px 0;
+  padding: 14px 16px;
+  border: 1px solid #d8e1ec;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fbff 0%, #f2f7fb 100%);
+}
+
+.workspace-status-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.workspace-status-label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #5f6b7b;
+}
+
+.workspace-status-value {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.workspace-status-next-cta {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #1e3a5f;
+}
+
+.workspace-mode-switch {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.workspace-mode-switch-btn {
+  border: 1px solid #c6d3e1;
+  background: #fff;
+  color: #29445f;
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 6px 12px;
+  font-weight: 600;
+}
+
+.workspace-mode-switch-btn.active {
+  border-color: #315b89;
+  background: #315b89;
+  color: #fff;
+}
+
+.workspace-mode-guide {
+  margin: 0;
+  font-size: 12px;
+  color: #516178;
+}
+
+.step-execution-card {
+  border: 1px solid #d7e2ee;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+}
+
+.step-execution-card-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.step-execution-card-header p {
+  margin: 6px 0 12px;
+  font-size: 13px;
+  color: #4a5d73;
+}
+
+.step-board-status {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #29445f;
+}
+
+.step-board-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.step-card {
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  background: #fdfefe;
+  padding: 12px;
+}
+
+.step-card.active {
+  border-color: #315b89;
+  box-shadow: 0 0 0 1px rgba(49, 91, 137, 0.2) inset;
+}
+
+.step-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.step-card-title {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #12243a;
+  text-align: left;
+}
+
+.step-card-desc,
+.step-card-summary {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #516178;
+}
+
+.step-card-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.status-pill.mini.running {
+  background: #fff6d8;
+  color: #8a5a00;
+}
+
+.status-pill.mini.review {
+  background: #e8f2ff;
+  color: #1d4f89;
+}
+
+.status-pill.mini.done {
+  background: #dff6e8;
+  color: #17603b;
+}
+
+.status-pill.mini.failed {
+  background: #fde4e4;
+  color: #7d1e1e;
+}
+
+.status-pill.mini.skipped {
+  background: #eceff4;
+  color: #49566b;
+}
+
+@media (max-width: 960px) {
+  .workspace-status-panel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .step-board-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .workspace-status-panel-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ops-toolbar {
   display: grid;
   grid-template-columns: 1fr 180px auto;

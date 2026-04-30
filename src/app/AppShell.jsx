@@ -12,8 +12,9 @@ import { useWorkspaceUrlSync } from '../entities/workspace/model/urlSync';
 import { useAuthContext } from '../entities/user/model/authState';
 import {
   WORKSPACE_STEP_DATA,
+  WORKSPACE_STEP_EXECUTION,
   WORKSPACE_STEP_PIPELINE,
-  WORKSPACE_STEP_RESULT,
+  WORKSPACE_STEP_REPORT,
 } from '../entities/workspace/model/workspaceStep';
 import { createWorkspaceProps } from '../pages/workspace/model/createWorkspaceProps';
 import { useWorkspaceActions } from '../pages/workspace/model/useWorkspaceActions';
@@ -319,6 +320,9 @@ function AppShell() {
     },
   ]);
   const [conflictInfo, setConflictInfo] = useState(null);
+  const [mode, setMode] = useState('beginner');
+  const [taskRunStateById, setTaskRunStateById] = useState({});
+  const [lastStatusMessage, setLastStatusMessage] = useState('');
   const [opsQuery, setOpsQuery] = useState('');
   const [opsType, setOpsType] = useState('all');
   const { auth, currentUserId, isAuthenticated, applyLoginSuccess, performLogout } = useAuthContext();
@@ -536,13 +540,15 @@ function AppShell() {
   }, [dataSources, userPipelines, moduleMemory, opsType, opsQuery]);
 
   const handleSelectPipeline = (id) => {
+    const resolved = [...templatePipelines, ...userPipelines].find((p) => p.id === id);
+    const firstTask = resolved?.moduleIds?.find((moduleId) => moduleId !== 'workflow');
     setSelectedModule('workflow');
     setMainHubSection('pipeline');
-    setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
+    setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
     setActivePipelineId(id);
     setActiveUserPipelineId(userPipelines.some((p) => p.id === id) ? id : null);
-    const resolved = [...templatePipelines, ...userPipelines].find((p) => p.id === id);
     setActiveDomainKey(resolved?.domainKey ?? null);
+    if (firstTask) setSelectedModule(firstTask);
   };
 
 
@@ -589,7 +595,7 @@ function AppShell() {
       setMainHubSectionWithStep(activeUserPipelineId ? 'pipeline-mine' : 'pipeline');
       return;
     }
-    if (step === WORKSPACE_STEP_RESULT) {
+    if (step === WORKSPACE_STEP_REPORT) {
       setSelectedModuleWithStep('results');
       return;
     }
@@ -597,6 +603,74 @@ function AppShell() {
       const fallback = activePipeline?.moduleIds?.[0] || 'diagnosis';
       setSelectedModuleWithStep(fallback);
     }
+  };
+
+  const findExecutionTaskIds = () => {
+    const taskIds = (activeUserPipeline?.moduleIds || activePipeline?.moduleIds || []).filter((id) => id !== 'workflow');
+    return taskIds;
+  };
+
+  const moveToNextExecutionTaskOrReport = (currentTaskId) => {
+    const taskIds = findExecutionTaskIds();
+    const currentIndex = taskIds.indexOf(currentTaskId);
+    const nextTaskId = currentIndex >= 0 ? taskIds[currentIndex + 1] : taskIds[0];
+    if (nextTaskId) {
+      setSelectedModuleWithStep(nextTaskId);
+      setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
+      return;
+    }
+    setSelectedModuleWithStep('results');
+    setWorkspaceStep(WORKSPACE_STEP_REPORT);
+  };
+
+  const updateTaskRunState = (taskId, patch) => {
+    setTaskRunStateById((prev) => ({
+      ...prev,
+      [taskId]: {
+        status: 'idle',
+        summary: '',
+        skipReason: '',
+        ...prev[taskId],
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      },
+    }));
+  };
+
+  const handleExecuteTask = (taskId) => {
+    setSelectedModuleWithStep(taskId);
+    setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
+    updateTaskRunState(taskId, {
+      status: 'review',
+      summary: '실행 결과를 확인하고 다음 단계를 선택하세요.',
+    });
+    setLastStatusMessage(`"${ALL_MODULE_CATALOG.find((m) => m.id === taskId)?.label || taskId}" 단계 실행 완료. 결과 검토가 필요합니다.`);
+  };
+
+  const handleRetryTask = (taskId) => {
+    updateTaskRunState(taskId, {
+      status: 'review',
+      summary: '다시 실행되었습니다. 결과를 재검토하세요.',
+    });
+    setLastStatusMessage('단계를 다시 실행했습니다.');
+  };
+
+  const handleApproveNextTask = (taskId) => {
+    updateTaskRunState(taskId, {
+      status: 'done',
+      summary: '검토 후 승인 완료',
+    });
+    moveToNextExecutionTaskOrReport(taskId);
+  };
+
+  const handleSkipTask = (taskId, reason) => {
+    updateTaskRunState(taskId, {
+      status: 'skipped',
+      summary: reason ? `건너뛰기: ${reason}` : '건너뜀',
+      skipReason: reason || '',
+    });
+    setLastStatusMessage('단계를 건너뛰고 다음 단계로 이동합니다.');
+    moveToNextExecutionTaskOrReport(taskId);
   };
 
   const appendChat = (text) => {
@@ -1005,6 +1079,7 @@ function AppShell() {
     pipelines: templatePipelines,
     userPipelines,
     activePipelineId,
+    workspaceStep,
     onSelectPipeline: handleSelectPipeline,
     onClearPipeline: () => {
       setActivePipelineId(null);
@@ -1075,6 +1150,14 @@ function AppShell() {
     activeUserPipelineId,
     activeUserPipeline,
     onStartPipelineFromModule: startPipelineFromModule,
+    mode,
+    taskRunStateById,
+    lastStatusMessage,
+    onModeChange: setMode,
+    onExecuteTask: handleExecuteTask,
+    onRetryTask: handleRetryTask,
+    onApproveNextTask: handleApproveNextTask,
+    onSkipTask: handleSkipTask,
   });
 
   useWorkspaceUrlSync({

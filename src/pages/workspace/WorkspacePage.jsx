@@ -1,5 +1,6 @@
 import Workspace from '../../components/Workspace';
 import WorkspaceContextBar from '../../components/WorkspaceContextBar';
+import WorkspaceStatusPanel from '../../components/WorkspaceStatusPanel';
 
 function WorkspacePage({
   conflictInfo,
@@ -36,6 +37,14 @@ function WorkspacePage({
         activeModule={activeModule}
         onStepChange={onStepChange}
         onClearContext={onClearContext}
+      />
+
+      <WorkspaceStatusPanel
+        workspaceStep={workspaceStep}
+        activeDataSource={activeDataSource}
+        activePipeline={activePipeline}
+        activeModule={activeModule}
+        moduleStatus={workspaceProps.moduleStatus}
       />
 
       <Workspace {...workspaceProps} />

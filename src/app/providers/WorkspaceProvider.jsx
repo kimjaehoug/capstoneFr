@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { WorkspaceContext } from '../../entities/workspace/model/workspaceContext';
 import {
   WORKSPACE_STEP_DATA,
-  WORKSPACE_STEP_MODULE,
+  WORKSPACE_STEP_EXECUTION,
   WORKSPACE_STEP_PIPELINE,
-  WORKSPACE_STEP_RESULT,
+  WORKSPACE_STEP_REPORT,
 } from '../../entities/workspace/model/workspaceStep';
 
 function WorkspaceProvider({ children }) {
@@ -23,9 +23,9 @@ function WorkspaceProvider({ children }) {
 
   const setSelectedModuleWithStep = (moduleId) => {
     setSelectedModule(moduleId);
-    if (moduleId === 'results') setWorkspaceStep(WORKSPACE_STEP_RESULT);
+    if (moduleId === 'results') setWorkspaceStep(WORKSPACE_STEP_REPORT);
     else if (moduleId === 'workflow') setWorkspaceStep(WORKSPACE_STEP_PIPELINE);
-    else setWorkspaceStep(WORKSPACE_STEP_MODULE);
+    else setWorkspaceStep(WORKSPACE_STEP_EXECUTION);
   };
 
   const clearWorkspaceContext = () => {

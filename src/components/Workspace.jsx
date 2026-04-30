@@ -10,6 +10,7 @@ import ResultsModule from '../modules/ResultsModule';
 import SpecialtyModule from '../modules/SpecialtyModule';
 import { DOMAIN_MODULE_IDS } from '../data/domainModules';
 import PipelineComposerBar from './PipelineComposerBar';
+import StepExecutionBoard from './StepExecutionBoard';
 
 function formatSavedTime(isoDate) {
   if (!isoDate) return '-';
@@ -30,6 +31,7 @@ function Workspace({
   onDuplicateUserPipeline,
   onDeleteUserPipeline,
   selectedModule,
+  workspaceStep,
   onSelectModule,
   moduleStatus,
   moduleMemory,
@@ -82,6 +84,14 @@ function Workspace({
   activeUserPipeline,
   onStartPipelineFromModule,
   isAuthenticated,
+  mode = 'beginner',
+  taskRunStateById = {},
+  lastStatusMessage = '',
+  onModeChange,
+  onExecuteTask,
+  onRetryTask,
+  onApproveNextTask,
+  onSkipTask,
 }) {
   const selectedModuleInfo = modules.find((item) => item.id === selectedModule);
   const allHubPipelines = [...pipelines, ...userPipelines];
@@ -105,6 +115,11 @@ function Workspace({
       ? activePipeline.description
       : selectedModuleInfo?.description;
   const showWorkspaceHeader = !isMainHubRoot && !(selectedModule === 'workflow' && activePipeline);
+  const isStepExecutionView = workspaceStep === 'execution';
+  const executionTasks = (activeUserPipeline?.moduleIds || activePipeline?.moduleIds || [])
+    .filter((id) => id !== 'workflow')
+    .map((id) => modules.find((m) => m.id === id))
+    .filter(Boolean);
 
   const showModuleBack = !isMainHubRoot && selectedModule !== 'workflow';
   const showPipelineHubBack = selectedModule === 'workflow' && Boolean(activePipeline);
@@ -296,6 +311,7 @@ function Workspace({
         onMoveModule={onMoveModuleInUserPipeline}
         onConnectAfter={onConnectModuleAfterInUserPipeline}
         onDisconnectAfter={onDisconnectEdgeAfterInUserPipeline}
+        mode={mode}
       />
       {showWorkspaceHeader && (
         <header
@@ -336,11 +352,11 @@ function Workspace({
                     className="btn-primary-inline workspace-btn-pipeline-start"
                     onClick={() => onStartPipelineFromModule(selectedModule)}
                   >
-                    이 모듈에서 파이프라인 시작해보기
+                    이 작업 단계에서 파이프라인 시작해보기
                   </button>
                 ) : (
                   <button type="button" onClick={() => onSaveCurrentModule(selectedModule)} disabled={!isAuthenticated}>
-                    현재 모듈 저장
+                    현재 작업 단계 저장
                   </button>
                 )}
                 {!isAuthenticated ? <span className="saved-time">로그인 후 저장 가능합니다.</span> : null}
@@ -369,6 +385,25 @@ function Workspace({
         </header>
       )}
       <section className={`workspace-content ${isMainHubRoot ? 'workspace-content--main-hub' : ''}`}>
+        <div className="workspace-mode-switch" role="group" aria-label="워크스페이스 모드">
+          <button
+            type="button"
+            className={`workspace-mode-switch-btn ${mode === 'beginner' ? 'active' : ''}`}
+            onClick={() => onModeChange?.('beginner')}
+          >
+            초급 모드
+          </button>
+          <button
+            type="button"
+            className={`workspace-mode-switch-btn ${mode === 'edit' ? 'active' : ''}`}
+            onClick={() => onModeChange?.('edit')}
+          >
+            편집 모드
+          </button>
+          {mode === 'edit' ? (
+            <p className="workspace-mode-guide">처음 사용하는 경우 기본 구성을 먼저 실행해보는 것을 권장합니다.</p>
+          ) : null}
+        </div>
         {showMainHubSectionBack ? (
           <div className="workspace-subnav">
             <button
@@ -383,7 +418,26 @@ function Workspace({
             </button>
           </div>
         ) : null}
-        {content}
+        {isStepExecutionView ? (
+          <article className="step-execution-card">
+            <header className="step-execution-card-header">
+              <h3>작업 단계 실행</h3>
+              <p>단계별로 실행하고 검토한 뒤 승인하여 다음 단계로 진행하세요.</p>
+            </header>
+            <StepExecutionBoard
+              tasks={executionTasks}
+              activeTaskId={selectedModule}
+              taskRunStateById={taskRunStateById}
+              lastStatusMessage={lastStatusMessage}
+              onSelectTask={onSelectModule}
+              onExecuteTask={onExecuteTask}
+              onRetryTask={onRetryTask}
+              onApproveNextTask={onApproveNextTask}
+              onSkipTask={onSkipTask}
+            />
+            {content}
+          </article>
+        ) : content}
       </section>
     </div>
   );
