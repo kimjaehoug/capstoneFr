@@ -17,7 +17,12 @@ export class ApiError extends Error {
 }
 
 export function getApiBaseUrl() {
-  return (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787').replace(/\/+$/, '');
+  const configured = import.meta.env.VITE_API_BASE_URL;
+  if (typeof configured === 'string' && configured.trim()) {
+    return configured.replace(/\/+$/, '');
+  }
+  // 개발 기본값: 프론트 dev server 프록시(/api)를 사용
+  return '';
 }
 
 export function setUnauthorizedHandler(handler) {
