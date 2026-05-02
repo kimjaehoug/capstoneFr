@@ -110,7 +110,7 @@ function ChatPanel({
                 ))}
               </div>
 
-              <div className="chat-context">
+              {/*<div className="chat-context">
                 <h4>Pipeline Memory</h4>
                 {savedModules.length === 0 ? (
                   <p className="chat-context-empty">
@@ -134,7 +134,7 @@ function ChatPanel({
                     ))}
                   </div>
                 )}
-              </div>
+              </div>*/}
             </div>
           )}
 
