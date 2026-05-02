@@ -467,7 +467,6 @@ function Workspace({
         onMoveModule={onMoveModuleInUserPipeline}
         onConnectAfter={onConnectModuleAfterInUserPipeline}
         onDisconnectAfter={onDisconnectEdgeAfterInUserPipeline}
-        mode={mode}
       />
       {showWorkspaceHeader && (
         <header className="workspace-header">
@@ -529,33 +528,13 @@ function Workspace({
           isStepExecutionView ? 'workspace-content--execution' : 'workspace-content--compose'
         }`}
       >
-        {!isStepExecutionView ? (
-          <div className="workspace-mode-switch" role="group" aria-label="워크스페이스 모드">
-            <span className="workspace-mode-badge">파이프라인 구성 모드</span>
-            <button
-              type="button"
-              className={`workspace-mode-switch-btn ${mode === 'beginner' ? 'active' : ''}`}
-              onClick={() => onModeChange?.('beginner')}
-            >
-              초급 모드
-            </button>
-            <button
-              type="button"
-              className={`workspace-mode-switch-btn ${mode === 'edit' ? 'active' : ''}`}
-              onClick={() => onModeChange?.('edit')}
-            >
-              편집 모드
-            </button>
-            {mode === 'edit' ? (
-              <p className="workspace-mode-guide">처음 사용하는 경우 기본 구성을 먼저 실행해보는 것을 권장합니다.</p>
-            ) : null}
-          </div>
-        ) : (
+        {isStepExecutionView && (
           <div className="workspace-execution-headline">
             <span className="workspace-mode-badge workspace-mode-badge--execution">단계 실행 모드</span>
             <p>여기서는 파이프라인 편집 없이, 선택한 파이프라인의 단계 실행만 진행합니다.</p>
           </div>
         )}
+
         {isStepExecutionView ? (
           <article className="step-execution-card">
             <header className="step-execution-card-header">
@@ -657,7 +636,9 @@ function Workspace({
               </>
             )}
           </article>
-        ) : content}
+        ) : (
+          content
+        )}
       </section>
     </div>
   );
