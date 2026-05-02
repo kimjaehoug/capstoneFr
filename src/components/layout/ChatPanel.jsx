@@ -50,7 +50,6 @@ function ChatPanel({
     setInput('');
   };
 
-  // ★ 2. 'chat' 탭이 열려있을 때만 스크롤이 내려가도록 조건 추가
   useEffect(() => {
     if (!messagesRef.current || collapsed || activeTab !== 'chat') return;
     messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -74,7 +73,6 @@ function ChatPanel({
         </div>
       ) : (
         <>
-          {/* ★ 3. 탭 전환 토글 버튼 추가 */}
           <div className="chat-tab-toggle">
             <button
               type="button"
@@ -92,7 +90,6 @@ function ChatPanel({
             </button>
           </div>
 
-          {/* ★ 4. AI 보조 지시 탭 영역 */}
           {activeTab === 'ai' && (
             <div className="chat-tab-content chat-ai-section">
               <div className="chat-system-note">
@@ -141,7 +138,6 @@ function ChatPanel({
             </div>
           )}
 
-          {/* ★ 5. 시스템 로그 (채팅) 탭 영역 */}
           {activeTab === 'chat' && (
             <div className="chat-tab-content chat-log-section">
               <div className="chat-messages" ref={messagesRef}>
