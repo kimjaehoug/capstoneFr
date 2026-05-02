@@ -3,6 +3,7 @@ import PipelineTimelineColumns from '../components/pipeline/PipelineTimelineColu
 
 function PipelineHub({
   templatePipelines,
+  totalCount,
   userPipelines,
   modules,
   moduleStatus,
@@ -169,22 +170,13 @@ function PipelineHub({
 
   return (
     <div className="hub-page">
-      <header className="hub-hero">
-        <p className="hub-eyebrow">Pipeline</p>
-        <h3 className="hub-hero-title">파이프라인 조회/관리</h3>
-        <p className="hub-hero-lead">
-          도메인별 데이터 파이프라인을 열고, 템플릿을 내 파이프라인으로 복사해 구성을 시작합니다. 연 뒤에는 고정된
-          6단계 가로 타임라인에서 단계별 부가 기능 후보를 고를 수 있습니다.
-        </p>
-      </header>
-
       {templatePipelines && templatePipelines.length > 0 && (
         <section className="hub-section" aria-labelledby="hub-templates-heading">
           <div className="hub-section-head">
             <h4 id="hub-templates-heading" className="hub-section-title">
               공유 템플릿
             </h4>
-            <span className="hub-section-meta">{templatePipelines.length}개</span>
+            <span className="hub-section-meta">{totalCount !== undefined ? totalCount : templatePipelines.length}개</span>
           </div>
           <div className="card-grid pipeline-catalog">
             {templatePipelines.map((pipeline) => (
@@ -212,7 +204,7 @@ function PipelineHub({
         </section>
       )}
 
-      {(userPipelines.length > 0 || templatePipelines.length === 0) && (
+      {/*{(userPipelines.length > 0 || templatePipelines.length === 0) && (
         <section className="hub-section hub-section--mine" aria-labelledby="hub-mine-heading">
           <div className="hub-section-head">
             <h4 id="hub-mine-heading" className="hub-section-title">
@@ -305,7 +297,7 @@ function PipelineHub({
             </div>
           )}
         </section>
-      )}
+      )} */}
 
       {active && (
       <PipelineTimelineColumns
