@@ -268,7 +268,7 @@ function OpsConsolePage({
         </article>
       </section>
 
-      <div className="main-hub-table-wrap">
+      {/*<div className="main-hub-table-wrap">
         <table className="main-hub-table">
           <thead>
             <tr>
@@ -299,7 +299,7 @@ function OpsConsolePage({
             )}
           </tbody>
         </table>
-      </div>
+      </div>*/}
     </section>
   );
 }
