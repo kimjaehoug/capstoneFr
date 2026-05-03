@@ -10,6 +10,11 @@ services:
       - "7634:7634"
     env_file:
       - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    networks:
+      - shared-backend-net
     restart: unless-stopped
+
+networks:
+  shared-backend-net:
+    external: true
+    name: workbench_default
