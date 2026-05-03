@@ -22,6 +22,7 @@ function SharedHubPage({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(4);
+  const [sortOrder, setSortOrder] = useState('latest');
 
   useEffect(() => {
     setVisibleCount(4);
@@ -37,9 +38,32 @@ function SharedHubPage({
   );
 }, [templatePipelines, searchQuery]);
 
+const sortedAndFilteredPipelines = useMemo(() => {
+  let result = templatePipelines.filter((p) => {
+    const query = searchQuery.toLowerCase();
+    return p.title.toLowerCase().includes(query) || 
+           p.description?.toLowerCase().includes(query);
+  });
+
+  result.sort((a, b) => {
+    const cleanDateA = a.date.trim().replace(/\.$/, '').split('.').join('-');
+    const cleanDateB = b.date.trim().replace(/\.$/, '').split('.').join('-');
+
+    const timeA = new Date(cleanDateA).getTime();
+    const timeB = new Date(cleanDateB).getTime();
+
+    const valA = isNaN(timeA) ? 0 : timeA;
+    const valB = isNaN(timeB) ? 0 : timeB;
+
+    return sortOrder === 'latest' ? valB - valA : valA - valB;
+  });
+
+  return result;
+}, [templatePipelines, searchQuery, sortOrder]);
+
 const visiblePipelines = useMemo(() => {
-  return filteredPipelines.slice(0, visibleCount);
-}, [filteredPipelines, visibleCount]);
+  return sortedAndFilteredPipelines.slice(0, visibleCount);
+}, [sortedAndFilteredPipelines, visibleCount]);
 
   const handleLoadMore = () => {
     setVisibleCount((prev) => prev + 4);
@@ -74,6 +98,8 @@ const visiblePipelines = useMemo(() => {
         <PipelineHub
           templatePipelines={visiblePipelines}
           totalCount={filteredPipelines.length}
+          sortOrder={sortOrder}
+          onToggleSort={() => setSortOrder(prev => prev === 'latest' ? 'oldest' : 'latest')}
           userPipelines={[]}
           modules={modules}
           moduleStatus={moduleStatus}

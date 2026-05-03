@@ -4122,6 +4122,80 @@ button.active {
   color: var(--text-main);
 }
 
+.btn-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-sort-toggle {
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.btn-sort-toggle:hover {
+  background-color: var(--bg-subtle);
+  color: var(--accent);
+}
+
+.sort-icon-toggle {
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.sort-icon-toggle.is-reverse {
+  transform: scaleY(-1);
+  color: var(--accent);
+}
+
+.sort-icon {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.btn-sort.active {
+  color: var(--accent);
+  background-color: rgba(var(--accent-rgb), 0.05);
+}
+
+.btn-sort.active .sort-icon {
+  opacity: 1;
+  stroke-width: 3;
+}
+
+.btn-sort:hover {
+  color: var(--text-main);
+  background-color: var(--bg-subtle);
+}
+
+.sort-divider {
+  width: 1px;
+  height: 12px;
+  background-color: var(--border-subtle);
+  margin: 0 4px;
+}
+
+.sort-divider {
+  width: 1px;
+  height: 10px;
+  background-color: var(--border-subtle);
+}
+
 .hub-section-meta {
   font-size: 12px;
   font-weight: 600;
@@ -4130,6 +4204,12 @@ button.active {
   border: 1px solid var(--border);
   padding: 3px 9px;
   border-radius: 999px;
+}
+
+.hub-section-meta-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .hub-empty {
@@ -4367,6 +4447,25 @@ button.active {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.pipeline-card-author {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.pipeline-card-author-icon {
+  margin-right: 5px;
+}
+
+.pipeline-card-date {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-bottom: 10px;
+}
+
+.pipeline-card-date-icon {
+  margin-right: 5px;
 }
 
 .value {
