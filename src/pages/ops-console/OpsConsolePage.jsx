@@ -34,7 +34,12 @@ function OpsConsolePage({
   onDeleteUserPipeline,
   onOpenPipelineInWorkspace,
 }) {
-  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('내 데이터 DB 관리');
+
+  const filterMenus = [
+  '내 데이터 DB 관리', '내 파이프라인 DB 관리', '데이터 진단', 
+  '도메인 정의', '데이터 탐색', '정합성 검토', '합성 데이터 설계', '결과 비교'
+];
 
   const categoryCards = useMemo(() => {
     return OPS_MODULE_CATEGORIES.map((category) => {
@@ -112,71 +117,19 @@ function OpsConsolePage({
         </button>
       </div>
 
-      <section className="ops-module-cards" aria-label="6단계 모듈 카테고리">
-        {categoryCards.map((card, index) => (
-          <article
-            key={card.id}
-            className={`ops-module-card clickable ${selectedCategoryId === card.id ? 'active' : ''}`}
-            onClick={() => setSelectedCategoryId((prev) => (prev === card.id ? null : card.id))}
-          >
-            <div className="ops-module-card-head">
-              <span className="ops-module-card-index">{index + 1}</span>
-              <h4>{card.title}</h4>
-            </div>
-            <p className="ops-module-card-meta">저장된 단계 수: {card.snapshotCount}</p>
-            <div className="ops-module-candidates">
-              {card.candidateItems.length === 0 ? (
-                <span className="ops-module-candidate-empty">후보 부가기능 없음</span>
-              ) : (
-                card.candidateItems.map((name) => (
-                  <span key={`${card.id}-${name}`} className="ops-module-candidate-chip">
-                    {name}
-                  </span>
-                ))
-              )}
-            </div>
-          </article>
-        ))}
-      </section>
-
-      {selectedCategory ? (
-        <section className="card" aria-label={`${selectedCategory.title} 작업 상태`}>
-          <h4>{selectedCategory.title} 작업 상태</h4>
-          <p className="hub-hero-lead">단계 실행에서 발생한 최신 상태를 조회합니다.</p>
-          <div className="main-hub-table-wrap">
-            <table className="main-hub-table">
-              <thead>
-                <tr>
-                  <th>작업</th>
-                  <th>상태</th>
-                  <th>요약</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedCategoryTaskStates.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="main-hub-table-empty">
-                      해당 단계의 작업 상태가 아직 없습니다.
-                    </td>
-                  </tr>
-                ) : (
-                  selectedCategoryTaskStates.map((row) => (
-                    <tr key={`task-${row.id}`}>
-                      <td>{row.name}</td>
-                      <td>
-                        <span className={`status-pill mini ${row.status || 'idle'}`}>{row.status || 'idle'}</span>
-                      </td>
-                      <td>{row.ref || '-'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="ops-management-grid" aria-label="내 데이터/파이프라인 관리">
+      <div className="ops-filter-bubbles">
+      {filterMenus.map((name) => (
+        <button 
+          key={name} 
+          className={`ops-bubble ${selectedCategoryId === name ? 'active' : ''}`}
+          onClick={() => setSelectedCategoryId(name)}
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+    <div className="ops-content-view">
+      {selectedCategoryId === '내 데이터 DB 관리' && (
         <article className="card">
           <h4>내 데이터 DB 관리</h4>
           <p className="hub-hero-lead">운영 콘솔에서 데이터 이름/출처 수정 및 삭제를 바로 수행할 수 있습니다.</p>
@@ -221,7 +174,9 @@ function OpsConsolePage({
             </table>
           </div>
         </article>
+      )}
 
+      {selectedCategoryId === '내 파이프라인 DB 관리' && (  
         <article className="card">
           <h4>내 파이프라인 DB 관리</h4>
           <p className="hub-hero-lead">파이프라인 제목/설명을 수정하고 삭제할 수 있습니다.</p>
@@ -266,42 +221,80 @@ function OpsConsolePage({
             </table>
           </div>
         </article>
-      </section>
+      )}
 
-      {/*<div className="main-hub-table-wrap">
-        <table className="main-hub-table">
-          <thead>
-            <tr>
-              <th>유형</th>
-              <th>ID</th>
-              <th>이름</th>
-              <th>상태</th>
-              <th>참조</th>
-            </tr>
-          </thead>
-          <tbody>
-            {opsRows.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="main-hub-table-empty">
-                  조회 결과가 없습니다.
-                </td>
-              </tr>
-            ) : (
-              opsRows.map((row) => (
-                <tr key={`${row.type}-${row.id}`}>
-                  <td>{row.type}</td>
-                  <td>{row.id}</td>
-                  <td>{row.name}</td>
-                  <td>{row.status}</td>
-                  <td>{row.ref}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>*/}
-    </section>
-  );
+      {filterMenus.slice(2).includes(selectedCategoryId) && (
+        <div className="ops-module-detail-area">
+          {categoryCards
+            .filter((card) => card.title === selectedCategoryId)
+            .map((card) => (
+              <article key={card.id} className="card ops-integrated-card">
+          <div className="ops-integrated-header">
+            <div className="ops-integrated-title-group">
+              <h4>{card.title}</h4>
+              {/* <span className="ops-integrated-meta">저장된 단계 수: {card.snapshotCount}</span> */}
+            </div>
+            <div className="ops-module-candidates">
+              {card.candidateItems.length === 0 ? (
+                <span className="ops-module-candidate-empty">후보 부가기능 없음</span>
+              ) : (
+                card.candidateItems.map((name) => (
+                  <span key={`${card.id}-${name}`} className="ops-module-candidate-chip">
+                    {name}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="ops-integrated-divider"></div>
+
+          <div className="ops-integrated-body">
+            <div className="ops-body-head">
+              <h5>{card.title} 작업 상태</h5>
+              <p className="hub-hero-lead">단계 실행에서 발생한 최신 상태를 조회합니다.</p>
+            </div>
+            
+            <div className="main-hub-table-wrap">
+              <table className="main-hub-table">
+                <thead>
+                  <tr>
+                    <th>작업</th>
+                    <th>상태</th>
+                    <th>요약</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedCategoryTaskStates.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="main-hub-table-empty">
+                        해당 단계의 작업 상태가 아직 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    selectedCategoryTaskStates.map((row) => (
+                      <tr key={`task-${row.id}`}>
+                        <td>{row.name}</td>
+                        <td>
+                          <span className={`status-pill mini ${row.status || 'idle'}`}>
+                            {row.status || 'idle'}
+                          </span>
+                        </td>
+                        <td>{row.ref || '-'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      ))}
+  </div>
+)}
+</div>
+</section>
+);
 }
 
 export default OpsConsolePage;
