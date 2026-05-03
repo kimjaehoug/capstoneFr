@@ -1,0 +1,13 @@
+name: workbench-frontend
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: capstone-frontend
+    ports:
+      - "7634:7634"
+    env_file:
+      - .env
+    restart: unless-stopped
