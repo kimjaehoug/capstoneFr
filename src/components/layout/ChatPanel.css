@@ -101,6 +101,17 @@
   padding-right: 4px;
 }
 
+.ai-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.chat-system-note {
+  margin-bottom: 8px;
+}
+
 .chat-system-note h3 {
   margin: 0;
   font-size: 15px;
@@ -117,7 +128,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
 }
 
 .chip-button {
@@ -198,7 +209,10 @@
 }
 
 .chat-log-section {
-  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
 }
 
 .chat-messages {
@@ -273,4 +287,42 @@
     border: 1px solid inherit; 
     box-shadow: none;
   }
+}
+
+.ai-messages-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ai-chat-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.ai-chat-flow .chat-message.user {
+  align-self: flex-end;
+  margin-left: 20%;
+}
+
+.ai-chat-flow .chat-message.assistant {
+  align-self: flex-start;
+  margin-right: 20%;
+  background-color: #f2f6fa;
+}
+
+.chat-message.system {
+  align-self: stretch;
+}
+
+
+.chat-tab-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chat-input-row {
+  margin-top: 8px;
 }
